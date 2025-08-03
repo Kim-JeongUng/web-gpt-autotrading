@@ -4,20 +4,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { TrendingUp, TrendingDown, DollarSign, Activity, Coins, Target } from "lucide-react"
+import { useTradingStore } from "@/lib/trading-store"
+import { useMemo } from "react"
 
 export function PortfolioOverview() {
-  const portfolioData = {
-    totalBalance: 125430.5,
-    totalPnL: 8234.2,
-    totalPnLPercent: 7.02,
-    activeStrategies: 3,
-    winRate: 68.5,
-    positions: [
-      { symbol: "BTCUSDT", size: 0.5, pnl: 1234.5, pnlPercent: 5.2, side: "LONG" },
-      { symbol: "ETHUSDT", size: 2.1, pnl: -234.2, pnlPercent: -1.8, side: "SHORT" },
-      { symbol: "ADAUSDT", size: 1000, pnl: 456.8, pnlPercent: 3.1, side: "LONG" },
-    ],
-  }
+  const { balance, positions } = useTradingStore()
+
+  const totalBalance = useMemo(() => {
+    if (!balance) return 0
+    const list = balance.list || balance.result?.list
+    const item = Array.isArray(list) ? list[0] : balance
+    return Number.parseFloat(item?.totalEquity || item?.walletBalance || '0')
+  }, [balance])
+
+  const totalPnL = useMemo(() => {
+    return positions.reduce((sum, pos) => sum + Number.parseFloat(pos.unrealisedPnl || '0'), 0)
+  }, [positions])
+
+  const totalPnLPercent = useMemo(() => {
+    const base = totalBalance - totalPnL
+    if (base === 0) return 0
+    return (totalPnL / base) * 100
+  }, [totalBalance, totalPnL])
+
+  const activeStrategies = positions.length
+  const winRate = useMemo(() => {
+    if (positions.length === 0) return 0
+    const wins = positions.filter((p) => Number.parseFloat(p.unrealisedPnl || '0') >= 0).length
+    return (wins / positions.length) * 100
+  }, [positions])
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -28,11 +43,7 @@ export function PortfolioOverview() {
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">${portfolioData.totalBalance.toLocaleString()}</div>
-          <div className="flex items-center text-xs text-muted-foreground">
-            <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
-            +2.1% from last month
-          </div>
+          <div className="text-2xl font-bold">${totalBalance.toLocaleString()}</div>
         </CardContent>
       </Card>
 
@@ -43,17 +54,17 @@ export function PortfolioOverview() {
           <Activity className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className={`text-2xl font-bold ${portfolioData.totalPnL >= 0 ? "text-green-600" : "text-red-600"}`}>
-            {portfolioData.totalPnL >= 0 ? "+" : ""}${portfolioData.totalPnL.toLocaleString()}
+          <div className={`text-2xl font-bold ${totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {totalPnL >= 0 ? '+' : ''}${totalPnL.toLocaleString()}
           </div>
           <div className="flex items-center text-xs text-muted-foreground">
-            {portfolioData.totalPnLPercent >= 0 ? (
+            {totalPnLPercent >= 0 ? (
               <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
             ) : (
               <TrendingDown className="h-3 w-3 mr-1 text-red-500" />
             )}
-            {portfolioData.totalPnLPercent >= 0 ? "+" : ""}
-            {portfolioData.totalPnLPercent}%
+            {totalPnLPercent >= 0 ? '+' : ''}
+            {totalPnLPercent.toFixed(2)}%
           </div>
         </CardContent>
       </Card>
@@ -65,8 +76,8 @@ export function PortfolioOverview() {
           <Target className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{portfolioData.activeStrategies}</div>
-          <div className="text-xs text-muted-foreground">AI 추천 전략 실행 중</div>
+          <div className="text-2xl font-bold">{activeStrategies}</div>
+          <div className="text-xs text-muted-foreground">현재 보유 중인 포지션 수</div>
         </CardContent>
       </Card>
 
@@ -77,8 +88,8 @@ export function PortfolioOverview() {
           <Coins className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{portfolioData.winRate}%</div>
-          <Progress value={portfolioData.winRate} className="mt-2" />
+          <div className="text-2xl font-bold">{winRate.toFixed(2)}%</div>
+          <Progress value={winRate} className="mt-2" />
         </CardContent>
       </Card>
 
@@ -90,28 +101,36 @@ export function PortfolioOverview() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {portfolioData.positions.map((position, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div>
-                    <div className="font-medium">{position.symbol}</div>
-                    <div className="text-sm text-muted-foreground">
-                      Size: {position.size} | {position.side}
+            {positions.map((position, index) => {
+              const size = Number.parseFloat(position.size || '0')
+              const pnl = Number.parseFloat(position.unrealisedPnl || '0')
+              const value = Number.parseFloat(position.positionValue || '0')
+              const pnlPercent = value !== 0 ? (pnl / value) * 100 : 0
+              return (
+                <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div>
+                      <div className="font-medium">{position.symbol}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Size: {size} | {position.side}
+                      </div>
+                    </div>
+                    <Badge variant={position.side === 'Buy' || position.side === 'LONG' ? 'default' : 'secondary'}>
+                      {position.side?.toString().toUpperCase()}
+                    </Badge>
+                  </div>
+                  <div className="text-right">
+                    <div className={`font-medium ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+                    </div>
+                    <div className={`text-sm ${pnlPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {pnlPercent >= 0 ? '+' : ''}
+                      {pnlPercent.toFixed(2)}%
                     </div>
                   </div>
-                  <Badge variant={position.side === "LONG" ? "default" : "secondary"}>{position.side}</Badge>
                 </div>
-                <div className="text-right">
-                  <div className={`font-medium ${position.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {position.pnl >= 0 ? "+" : ""}${position.pnl}
-                  </div>
-                  <div className={`text-sm ${position.pnlPercent >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {position.pnlPercent >= 0 ? "+" : ""}
-                    {position.pnlPercent}%
-                  </div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </CardContent>
       </Card>

@@ -121,6 +121,15 @@ export function EnhancedLiveTrading() {
     return 0
   }, [balance])
 
+  const { totalEquity, totalPnl } = useMemo(() => {
+    if (!balance) return { totalEquity: 0, totalPnl: 0 }
+    const list = balance.list || balance.result?.list
+    const item = Array.isArray(list) ? list[0] : balance
+    const equity = Number.parseFloat(item?.totalEquity || item?.walletBalance || '0')
+    const pnl = Number.parseFloat(item?.unrealisedPnl || '0')
+    return { totalEquity: equity, totalPnl: pnl }
+  }, [balance])
+
   const positionQty = useMemo(() => {
     if (!positions) return 0
     return positions
@@ -327,6 +336,12 @@ export function EnhancedLiveTrading() {
                   <> | 보유 수량: {positionQty.toFixed(4)}</>
                 )}
               </CardDescription>
+              <div className="mt-2 flex gap-4 text-sm">
+                <span>총 자산: {totalEquity.toFixed(2)} USDT</span>
+                <span className={totalPnl >= 0 ? 'text-green-600' : 'text-red-600'}>
+                  총 손익: {totalPnl >= 0 ? '+' : ''}{totalPnl.toFixed(2)} USDT
+                </span>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Buy/Sell Tabs */}
