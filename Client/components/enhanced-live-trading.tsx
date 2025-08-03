@@ -23,6 +23,15 @@ const SUPPORTED_SYMBOLS = [
   { symbol: "ADAUSDT", name: "Cardano" },
 ]
 
+const INTERVAL_MAP: Record<string, string> = {
+  "1m": "1",
+  "5m": "5",
+  "15m": "15",
+  "1h": "60",
+  "4h": "240",
+  "1d": "D",
+}
+
 export function EnhancedLiveTrading() {
   const {
     selectedSymbol,
@@ -50,6 +59,8 @@ export function EnhancedLiveTrading() {
   const [timeframe, setTimeframe] = useState<
     "1m" | "5m" | "15m" | "1h" | "4h" | "1d"
   >("1m")
+  const [geminiAnswer, setGeminiAnswer] = useState<string | null>(null)
+  const [isAsking, setIsAsking] = useState(false)
 
   // Subscribe to real-time data
   useEffect(() => {
@@ -123,6 +134,39 @@ export function EnhancedLiveTrading() {
       setPrice(currentPrice.toString())
     }
   }, [orderType, currentPrice, selectedSymbol, price])
+
+  const handleAskGemini = async () => {
+    setIsAsking(true)
+    setGeminiAnswer(null)
+    try {
+      const list = await bybitService.getKlines({
+        symbol: selectedSymbol,
+        interval: INTERVAL_MAP[timeframe] || '1',
+        limit: 20,
+        category: 'linear',
+      })
+      const data = list.map((k: any) => ({
+        time: Number(k[0]),
+        open: Number(k[1]),
+        high: Number(k[2]),
+        low: Number(k[3]),
+        close: Number(k[4]),
+        volume: Number(k[5]),
+      }))
+      const payload = {
+        symbol: selectedSymbol,
+        timeframe,
+        data,
+        currentPrice: data[data.length - 1]?.close,
+      }
+      const text = await bybitService.getGeminiAnalysis(payload)
+      setGeminiAnswer(text)
+    } catch (err: any) {
+      setGeminiAnswer('오류: ' + (err.message || 'failed'))
+    } finally {
+      setIsAsking(false)
+    }
+  }
 
   const handlePlaceOrder = async () => {
     if (!amount || (orderType === "Limit" && !price)) {
@@ -244,6 +288,14 @@ export function EnhancedLiveTrading() {
                       {tf}
                     </Button>
                   ))}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleAskGemini}
+                    disabled={isAsking}
+                  >
+                    {isAsking ? "분석 중..." : "Gemini에 이 코인 물어보기"}
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -252,6 +304,13 @@ export function EnhancedLiveTrading() {
                 symbol={selectedSymbol}
                 timeframe={timeframe}
               />
+              {geminiAnswer && (
+                <Alert className="mt-4">
+                  <AlertDescription className="whitespace-pre-wrap">
+                    {geminiAnswer}
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
         </div>
