@@ -281,7 +281,7 @@ export function EnhancedLiveTrading() {
                   ].map((tf) => (
                     <Button
                       key={tf}
-                      variant="outline"
+                      variant={timeframe === tf ? "default" : "outline"}
                       size="sm"
                       onClick={() => setTimeframe(tf as any)}
                     >

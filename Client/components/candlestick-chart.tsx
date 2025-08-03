@@ -15,12 +15,21 @@ interface Props {
   data: Candle[]
   width?: number
   height?: number
+  initialCandles?: number
 }
 
-export function CandlestickChart({ data, width = 600, height = 300 }: Props) {
+export function CandlestickChart({ data, width = 600, height = 300, initialCandles }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [zoom, setZoom] = useState(1)
   const [hover, setHover] = useState<{ x: number; y: number; candle: Candle } | null>(null)
+  const hasInitialZoom = useRef(false)
+
+  useEffect(() => {
+    if (initialCandles && data.length && !hasInitialZoom.current) {
+      setZoom(data.length / initialCandles)
+      hasInitialZoom.current = true
+    }
+  }, [data.length, initialCandles])
 
   useEffect(() => {
     const canvas = canvasRef.current

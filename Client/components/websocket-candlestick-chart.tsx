@@ -100,6 +100,12 @@ export function WebsocketCandlestickChart({ symbol, timeframe = "1m" }: Props) {
     }
   }, [symbol, timeframe])
 
-  return <CandlestickChart data={candles} />
+  return (
+    <CandlestickChart
+      key={`${symbol}-${timeframe}`}
+      data={candles}
+      initialCandles={40}
+    />
+  )
 }
 
