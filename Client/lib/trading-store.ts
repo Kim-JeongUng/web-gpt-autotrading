@@ -134,12 +134,7 @@ export const useTradingStore = create<TradingState>()(
 
   refreshAccountData: async () => {
     try {
-      const [balance, positions, orders] = await Promise.all([
-        bybitService.getAccountBalance(),
-        bybitService.getPositions(),
-        bybitService.getActiveOrders(),
-      ]);
-
+      const { balance, positions, orders } = await bybitService.getAccountOverview();
       set({ balance, positions, orders, error: null });
       console.log('Loaded', orders.length, 'active orders');
     } catch (error) {

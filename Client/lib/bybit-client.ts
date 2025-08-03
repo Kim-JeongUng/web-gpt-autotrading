@@ -161,6 +161,20 @@ export class BybitService {
     }
   }
 
+  async getAccountOverview() {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/account`)
+      if (!res.ok) {
+        const message = await res.text()
+        throw new Error(`Server error ${res.status}: ${message}`)
+      }
+      return await res.json()
+    } catch (error) {
+      console.error('Error fetching account overview:', error)
+      throw error
+    }
+  }
+
   async placeOrder(orderParams: {
     symbol: string
     side: "Buy" | "Sell"

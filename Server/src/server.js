@@ -112,6 +112,32 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
+app.get('/api/account', async (req, res) => {
+  try {
+    const [balance, positions, orders] = await Promise.all([
+      restClient.getWalletBalance({ accountType: 'UNIFIED' }),
+      restClient.getPositionInfo({ category: 'linear' }),
+      restClient.getActiveOrders({ category: 'linear' }),
+    ]);
+
+    const balanceData = balance.result || balance;
+    const positionsList = positions.result?.list || positions.list || [];
+    const ordersList = orders.result?.list || orders.list || [];
+    const list = balanceData.list || [];
+    const item = Array.isArray(list) ? list[0] : balanceData;
+    const totalEquity = Number.parseFloat(item?.totalEquity || item?.walletBalance || '0');
+    const totalPnl = positionsList.reduce(
+      (sum, p) => sum + Number.parseFloat(p.unrealisedPnl || '0'),
+      0,
+    );
+
+    res.json({ balance: balanceData, positions: positionsList, orders: ordersList, totalEquity, totalPnl });
+  } catch (err) {
+    console.error('Error fetching account overview:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Validate API credentials by attempting a private request
 // app.post('/api/validate', async (req, res) => {
 //   const { apiKey, apiSecret, testnet = false } = req.body;
