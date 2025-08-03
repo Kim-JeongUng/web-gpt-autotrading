@@ -289,8 +289,8 @@ export function EnhancedTradingChart({ symbol }: EnhancedTradingChartProps) {
   };
 
   const MainChart = ({ data }: { data: ChartData[] }) => {
+    const sorted = [...data].sort((a, b) => a.timestamp - b.timestamp);
     if (chartType === "candlestick") {
-      const sorted = [...data].sort((a, b) => a.timestamp - b.timestamp);
       const candles = sorted.map((d) => ({
         time: d.timestamp / 1000 as any,
         open: d.open,
@@ -298,12 +298,23 @@ export function EnhancedTradingChart({ symbol }: EnhancedTradingChartProps) {
         low: d.low,
         close: d.close,
       }));
-      return <LightweightCandlestickChart data={candles} />;
+      const bollinger = sorted.map((d) => ({
+        time: d.timestamp / 1000 as any,
+        upper: d.bb_upper,
+        middle: d.bb_middle,
+        lower: d.bb_lower,
+      }));
+      return (
+        <LightweightCandlestickChart
+          data={candles}
+          bollinger={showIndicators.bollinger ? bollinger : undefined}
+        />
+      );
     }
 
     return (
       <ResponsiveContainer width="100%" height={400}>
-        <ComposedChart data={data} isAnimationActive={false}>
+        <ComposedChart data={sorted} isAnimationActive={false}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="time" />
           <YAxis yAxisId="price" orientation="right" />

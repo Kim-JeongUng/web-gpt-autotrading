@@ -16,17 +16,31 @@ export interface Candle {
   close: number;
 }
 
-interface Props {
-  data: Candle[];
+interface BollingerPoint {
+  time: Time;
+  upper: number;
+  middle: number;
+  lower: number;
 }
 
-export function LightweightCandlestickChart({ data }: Props) {
+interface Props {
+  data: Candle[];
+  bollinger?: BollingerPoint[];
+}
+
+export function LightweightCandlestickChart({ data, bollinger }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReturnType<typeof createChart>>();
   const seriesRef =
     useRef<
       ReturnType<ReturnType<typeof createChart>["addCandlestickSeries"]>
     >();
+  const bbUpperRef =
+    useRef<ReturnType<ReturnType<typeof createChart>["addLineSeries"]>>();
+  const bbMiddleRef =
+    useRef<ReturnType<ReturnType<typeof createChart>["addLineSeries"]>>();
+  const bbLowerRef =
+    useRef<ReturnType<ReturnType<typeof createChart>["addLineSeries"]>>();
   const [hover, setHover] = useState<Candle | null>(null);
   const lengthRef = useRef(0);
 
@@ -55,6 +69,18 @@ export function LightweightCandlestickChart({ data }: Props) {
         borderVisible: false,
         wickUpColor: "#22c55e",
         wickDownColor: "#ef4444",
+      });
+      bbUpperRef.current = chartRef.current.addLineSeries({
+        color: "#d1d5db",
+        lineWidth: 1,
+      });
+      bbMiddleRef.current = chartRef.current.addLineSeries({
+        color: "#6b7280",
+        lineWidth: 1,
+      });
+      bbLowerRef.current = chartRef.current.addLineSeries({
+        color: "#d1d5db",
+        lineWidth: 1,
       });
       chartRef.current.timeScale().fitContent();
 
@@ -96,6 +122,43 @@ export function LightweightCandlestickChart({ data }: Props) {
     chartRef.current?.timeScale().scrollToRealTime();
     lengthRef.current = sorted.length;
   }, [data]);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    if (!bbUpperRef.current || !bbMiddleRef.current || !bbLowerRef.current) {
+      bbUpperRef.current = chartRef.current.addLineSeries({
+        color: "#d1d5db",
+        lineWidth: 1,
+      });
+      bbMiddleRef.current = chartRef.current.addLineSeries({
+        color: "#6b7280",
+        lineWidth: 1,
+      });
+      bbLowerRef.current = chartRef.current.addLineSeries({
+        color: "#d1d5db",
+        lineWidth: 1,
+      });
+    }
+
+    if (bollinger && bollinger.length) {
+      const sorted = [...bollinger].sort(
+        (a, b) => Number(a.time) - Number(b.time),
+      );
+      bbUpperRef.current?.setData(
+        sorted.map((b) => ({ time: b.time, value: b.upper })),
+      );
+      bbMiddleRef.current?.setData(
+        sorted.map((b) => ({ time: b.time, value: b.middle })),
+      );
+      bbLowerRef.current?.setData(
+        sorted.map((b) => ({ time: b.time, value: b.lower })),
+      );
+    } else {
+      bbUpperRef.current?.setData([]);
+      bbMiddleRef.current?.setData([]);
+      bbLowerRef.current?.setData([]);
+    }
+  }, [bollinger]);
 
   useEffect(() => {
     const chart = chartRef.current;
