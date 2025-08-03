@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { bybitService } from "@/lib/bybit-client"
 import { CandlestickChart, Candle } from "./candlestick-chart"
+import { RSIChart } from "./rsi-chart"
 
 interface Props {
   symbol: string
@@ -32,6 +33,40 @@ export function WebsocketCandlestickChart({ symbol, timeframe = "1m" }: Props) {
   useEffect(() => {
     let cancelled = false
     let unsub: (() => void) | undefined
+
+    const calculateIndicators = (data: Candle[]) => {
+      const closes = data.map((d) => d.close)
+      const rsiPeriod = 14
+      const bbPeriod = 20
+      for (let i = 0; i < data.length; i++) {
+        if (i > 0) {
+          let gains = 0
+          let losses = 0
+          const start = Math.max(0, i - rsiPeriod + 1)
+          for (let j = start + 1; j <= i; j++) {
+            const diff = closes[j] - closes[j - 1]
+            if (diff >= 0) gains += diff
+            else losses -= diff
+          }
+          const avgGain = gains / Math.min(i, rsiPeriod)
+          const avgLoss = losses / Math.min(i, rsiPeriod)
+          const rs = avgLoss === 0 ? 100 : avgGain / avgLoss
+          data[i].rsi = 100 - 100 / (1 + rs)
+        } else {
+          data[i].rsi = 50
+        }
+
+        const bbStart = Math.max(0, i - bbPeriod + 1)
+        const slice = closes.slice(bbStart, i + 1)
+        const mean = slice.reduce((a, b) => a + b, 0) / slice.length
+        const std = Math.sqrt(
+          slice.reduce((s, v) => s + (v - mean) ** 2, 0) / slice.length,
+        )
+        data[i].bb_middle = mean
+        data[i].bb_upper = mean + 2 * std
+        data[i].bb_lower = mean - 2 * std
+      }
+    }
 
     const fetchData = async () => {
       let start: number | undefined
@@ -63,6 +98,7 @@ export function WebsocketCandlestickChart({ symbol, timeframe = "1m" }: Props) {
         }
       }
       if (!cancelled) {
+        calculateIndicators(combined)
         setCandles(combined)
         unsub = bybitService.subscribeToKlines(
           symbol,
@@ -85,6 +121,7 @@ export function WebsocketCandlestickChart({ symbol, timeframe = "1m" }: Props) {
                 updated.push(newItem)
               }
               updated.sort((a, b) => a.time - b.time)
+              calculateIndicators(updated)
               return updated.slice(-1000)
             })
           }
@@ -100,12 +137,24 @@ export function WebsocketCandlestickChart({ symbol, timeframe = "1m" }: Props) {
     }
   }, [symbol, timeframe])
 
+  const rsiData = candles.map((c) => ({
+    time: new Date(c.time).toLocaleTimeString("ko-KR", { hour12: false }),
+    rsi: c.rsi || 0,
+  }))
+
   return (
-    <CandlestickChart
-      key={`${symbol}-${timeframe}`}
-      data={candles}
-      initialCandles={40}
-    />
+    <div className="space-y-4">
+      <CandlestickChart
+        key={`${symbol}-${timeframe}`}
+        data={candles}
+        initialCandles={40}
+        showBollinger
+      />
+      <div>
+        <h4 className="text-sm font-medium mb-2">RSI (14)</h4>
+        <RSIChart data={rsiData} />
+      </div>
+    </div>
   )
 }
 

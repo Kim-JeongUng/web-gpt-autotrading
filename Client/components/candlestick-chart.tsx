@@ -9,6 +9,10 @@ export interface Candle {
   low: number
   close: number
   volume?: number
+  bb_upper?: number
+  bb_middle?: number
+  bb_lower?: number
+  rsi?: number
 }
 
 interface Props {
@@ -16,9 +20,10 @@ interface Props {
   width?: number
   height?: number
   initialCandles?: number
+  showBollinger?: boolean
 }
 
-export function CandlestickChart({ data, width = 600, height = 300, initialCandles }: Props) {
+export function CandlestickChart({ data, width = 600, height = 300, initialCandles, showBollinger = false }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [zoom, setZoom] = useState(1)
   const [hover, setHover] = useState<{ x: number; y: number; candle: Candle } | null>(null)
@@ -51,6 +56,13 @@ export function CandlestickChart({ data, width = 600, height = 300, initialCandl
     const visible = data.slice(-visibleCount)
 
     const prices = visible.flatMap((d) => [d.high, d.low])
+    if (showBollinger) {
+      visible.forEach((d) => {
+        if (d.bb_upper !== undefined && d.bb_lower !== undefined) {
+          prices.push(d.bb_upper, d.bb_lower)
+        }
+      })
+    }
     const minPrice = Math.min(...prices)
     const maxPrice = Math.max(...prices)
     const priceRange = maxPrice - minPrice || 1
@@ -111,6 +123,26 @@ export function CandlestickChart({ data, width = 600, height = 300, initialCandl
         Math.max(bodyHeight, 1 / dpr)
       )
     })
+
+    if (showBollinger) {
+      const drawLine = (key: keyof Candle, color: string) => {
+        ctx.strokeStyle = color
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        visible.forEach((candle, index) => {
+          const value = candle[key]
+          if (value === undefined) return
+          const x = 50 + index * candleWidth + candleWidth / 2
+          const y = 40 + ((maxPrice - value) / priceRange) * chartHeight
+          if (index === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        })
+        ctx.stroke()
+      }
+      drawLine("bb_upper", "#d1d5db")
+      drawLine("bb_middle", "#6b7280")
+      drawLine("bb_lower", "#d1d5db")
+    }
   }, [data, width, height, zoom])
 
   useEffect(() => {
