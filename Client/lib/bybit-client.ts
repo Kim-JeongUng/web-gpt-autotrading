@@ -138,7 +138,7 @@ export class BybitService {
         throw new Error(`Server error ${res.status}: ${message}`)
       }
       const data = await res.json()
-      return data.result
+      return data
     } catch (error) {
       console.error("Error fetching account balance:", error)
       throw error
@@ -169,6 +169,8 @@ export class BybitService {
     price?: string
     leverage?: number
     positionIdx?: number
+    takeProfit?: string
+    stopLoss?: string
   }) {
 
     try {
@@ -182,7 +184,7 @@ export class BybitService {
         throw new Error(`Server error ${res.status}: ${message}`)
       }
       const data = await res.json()
-      return data.result
+      return data
     } catch (error) {
       console.error("Error placing order:", error)
       throw error
