@@ -451,5 +451,4 @@ app.post('/api/gemini', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch Gemini analysis' });
   }
 });
-const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
