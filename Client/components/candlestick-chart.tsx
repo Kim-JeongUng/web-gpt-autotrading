@@ -23,11 +23,28 @@ interface Props {
   showBollinger?: boolean
 }
 
-export function CandlestickChart({ data, width = 600, height = 300, initialCandles, showBollinger = false }: Props) {
+export function CandlestickChart({ data, width, height = 300, initialCandles, showBollinger = false }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [chartWidth, setChartWidth] = useState(width ?? 0)
   const [zoom, setZoom] = useState(1)
   const [hover, setHover] = useState<{ x: number; y: number; candle: Candle } | null>(null)
   const hasInitialZoom = useRef(false)
+
+  useEffect(() => {
+    if (width) {
+      setChartWidth(width)
+      return
+    }
+    const resize = () => {
+      if (containerRef.current) {
+        setChartWidth(containerRef.current.clientWidth)
+      }
+    }
+    resize()
+    window.addEventListener("resize", resize)
+    return () => window.removeEventListener("resize", resize)
+  }, [width])
 
   useEffect(() => {
     if (initialCandles && data.length && !hasInitialZoom.current) {
@@ -38,19 +55,19 @@ export function CandlestickChart({ data, width = 600, height = 300, initialCandl
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || !data.length) return
+    if (!canvas || !data.length || chartWidth === 0) return
 
     const dpr = window.devicePixelRatio || 1
-    canvas.style.width = `${width}px`
+    canvas.style.width = `${chartWidth}px`
     canvas.style.height = `${height}px`
-    canvas.width = width * dpr
+    canvas.width = chartWidth * dpr
     canvas.height = height * dpr
 
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
     ctx.scale(dpr, dpr)
-    ctx.clearRect(0, 0, width, height)
+    ctx.clearRect(0, 0, chartWidth, height)
 
     const visibleCount = Math.max(10, Math.min(data.length, Math.floor(data.length / zoom)))
     const visible = data.slice(-visibleCount)
@@ -67,7 +84,7 @@ export function CandlestickChart({ data, width = 600, height = 300, initialCandl
     const maxPrice = Math.max(...prices)
     const priceRange = maxPrice - minPrice || 1
 
-    const candleWidth = (width - 100) / visibleCount
+    const candleWidth = (chartWidth - 100) / visibleCount
     const chartHeight = height - 80
 
     ctx.strokeStyle = "#2a2a2a"
@@ -77,12 +94,12 @@ export function CandlestickChart({ data, width = 600, height = 300, initialCandl
       const y = 40 + (chartHeight / 10) * i
       ctx.beginPath()
       ctx.moveTo(50, y)
-      ctx.lineTo(width - 50, y)
+      ctx.lineTo(chartWidth - 50, y)
       ctx.stroke()
     }
 
     for (let i = 0; i <= 10; i++) {
-      const x = 50 + ((width - 100) / 10) * i
+      const x = 50 + ((chartWidth - 100) / 10) * i
       ctx.beginPath()
       ctx.moveTo(x, 40)
       ctx.lineTo(x, height - 40)
@@ -143,7 +160,7 @@ export function CandlestickChart({ data, width = 600, height = 300, initialCandl
       drawLine("bb_middle", "#6b7280")
       drawLine("bb_lower", "#d1d5db")
     }
-  }, [data, width, height, zoom])
+  }, [data, chartWidth, height, zoom])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -159,7 +176,7 @@ export function CandlestickChart({ data, width = 600, height = 300, initialCandl
       const y = e.clientY - rect.top
 
       const visibleCount = Math.max(10, Math.min(data.length, Math.floor(data.length / zoom)))
-      const candleWidth = (width - 100) / visibleCount
+      const candleWidth = (chartWidth - 100) / visibleCount
       const index = Math.floor((x - 50) / candleWidth)
       const visible = data.slice(-visibleCount)
 
@@ -179,10 +196,10 @@ export function CandlestickChart({ data, width = 600, height = 300, initialCandl
       canvas.removeEventListener("mousemove", onMove)
       canvas.removeEventListener("mouseleave", onLeave)
     }
-  }, [data, width, zoom])
+  }, [data, chartWidth, zoom])
 
   return (
-    <div className="relative" style={{ width, height }}>
+    <div ref={containerRef} className="relative w-full" style={{ height }}>
       <canvas ref={canvasRef} className="border border-gray-800 bg-gray-900 w-full h-full" />
       {hover && (
         <div
