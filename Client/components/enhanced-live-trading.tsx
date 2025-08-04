@@ -189,7 +189,6 @@ export function EnhancedLiveTrading() {
         qty: amount,
         price: orderType === "Market" ? undefined : price,
         leverage: Number.parseInt(leverage),
-        positionIdx: positionType === "long" ? 1 : 2,
         takeProfit: takeProfit || undefined,
         stopLoss: stopLoss || undefined,
       }
