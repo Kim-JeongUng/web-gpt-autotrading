@@ -28,14 +28,14 @@ function writeUsers({ wb, sheetName, headers, users }) {
 
 async function fetchGeminiSignal() {
   const { data: kline } = await axios.get(KLINE_URL, {
-    params: { symbol: 'BTCUSDT', interval: '1', limit: '200' },
+    params: { symbol: 'BTCUSDT', interval: '1', limit: '50' },
   });
   const { data } = await axios.post(GEMINI_URL, kline);
   return data.text || '';
 }
 
 function parseSignal(text) {
-  const posMatch = /(포지션 추천|position)\s*[:\-]?\s*(매수|매도|long|short)/i.exec(text);
+  const posMatch = /(포지션 추천|position)\s*[:\-]?\s*(매수|매도|Long|Short)/i.exec(text);
   let position = posMatch ? posMatch[2].toLowerCase() : null;
   if (position === '매수') position = 'long';
   if (position === '매도') position = 'short';
@@ -52,14 +52,18 @@ function parseSignal(text) {
 async function placeOrders(signal, usersData) {
   const { users, wb, sheetName, headers } = usersData;
   if (!signal.position) return;
-
+  console.log("AAA");
   const priceRes = await axios.get(TICKER_URL, { params: { symbol: 'BTCUSDT' } });
   const lastPrice = parseFloat(priceRes.data?.result?.list?.[0]?.lastPrice || '0');
 
   const side = signal.position === 'long' ? 'Buy' : signal.position === 'short' ? 'Sell' : null;
+  console.log("A1231231AA");
+
   if (!side) return;
 
   for (const user of users) {
+  console.log("A222AA");
+
     if (user['now AI trading count(read Only)'] >= user['max AI trading count']) continue;
     if (Math.random() * 100 > (user['Reliability(%)'] || 0)) continue;
 
@@ -113,6 +117,7 @@ async function run() {
     const text = await fetchGeminiSignal();
     const signal = parseSignal(text);
     console.log('[Gemini]', signal);
+    console.log('aaaa' + signal.position);
     if (signal.position === 'long' || signal.position === 'short') {
       const usersData = readUsers();
       await placeOrders(signal, usersData);
