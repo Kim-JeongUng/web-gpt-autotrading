@@ -169,6 +169,8 @@ export class BybitService {
     price?: string
     leverage?: number
     positionIdx?: number
+    takeProfit?: string
+    stopLoss?: string
   }) {
 
     try {

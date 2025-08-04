@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useTradingStore } from "@/lib/trading-store"
@@ -50,17 +49,20 @@ export function EnhancedLiveTrading() {
   } = useTradingStore()
 
   const [orderType, setOrderType] = useState<"Market" | "Limit">("Limit")
-  const [side, setSide] = useState<"Buy" | "Sell">("Buy")
   const [amount, setAmount] = useState("")
   const [price, setPrice] = useState("")
   const [leverage, setLeverage] = useState("1")
   const [positionType, setPositionType] = useState<"long" | "short">("long")
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
+  const [takeProfit, setTakeProfit] = useState("")
+  const [stopLoss, setStopLoss] = useState("")
   const [timeframe, setTimeframe] = useState<
     "1m" | "5m" | "15m" | "1h" | "4h" | "1d"
   >("1m")
   const [geminiAnswer, setGeminiAnswer] = useState<string | null>(null)
   const [isAsking, setIsAsking] = useState(false)
+
+  const side = positionType === "long" ? "Buy" : "Sell"
 
   // Subscribe to real-time data
   useEffect(() => {
@@ -186,6 +188,8 @@ export function EnhancedLiveTrading() {
         price: orderType === "Market" ? undefined : price,
         leverage: Number.parseInt(leverage),
         positionIdx: positionType === "long" ? 1 : 2,
+        takeProfit: takeProfit || undefined,
+        stopLoss: stopLoss || undefined,
       }
 
       await placeOrder(orderParams)
@@ -193,6 +197,8 @@ export function EnhancedLiveTrading() {
       // Reset form
       setAmount("")
       setPrice("")
+      setTakeProfit("")
+      setStopLoss("")
 
       // Show success message
       setError(null)
@@ -323,24 +329,13 @@ export function EnhancedLiveTrading() {
               <CardDescription>
                 {SUPPORTED_SYMBOLS.find((s) => s.symbol === selectedSymbol)?.name}
                 {currentPrice > 0 && ` - $${currentPrice.toFixed(currentPrice > 1 ? 2 : 6)}`}
+                {` | 잔액: ${availableBalance.toFixed(2)} USDT`}
                 {positionQty > 0 && (
                   <> | 보유 수량: {positionQty.toFixed(4)}</>
                 )}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Buy/Sell Tabs */}
-              <Tabs value={side} onValueChange={(value) => setSide(value as "Buy" | "Sell")}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="Buy" className="text-green-600">
-                    매수
-                  </TabsTrigger>
-                  <TabsTrigger value="Sell" className="text-red-600">
-                    매도
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-
               {/* Position Type */}
               <div className="space-y-2">
                 <Label>포지션 타입</Label>
@@ -436,15 +431,39 @@ export function EnhancedLiveTrading() {
                 </div>
               </div>
 
+              {/* Take Profit & Stop Loss */}
+              <div className="space-y-2">
+                <Label>익절가 (Take Profit)</Label>
+                <Input
+                  type="number"
+                  placeholder="익절가 입력"
+                  value={takeProfit}
+                  onChange={(e) => setTakeProfit(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>손절가 (Stop Loss)</Label>
+                <Input
+                  type="number"
+                  placeholder="손절가 입력"
+                  value={stopLoss}
+                  onChange={(e) => setStopLoss(e.target.value)}
+                />
+              </div>
+
               {/* Order Button */}
               <Button
                 className={`w-full ${
-                  side === "Buy" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
+                  positionType === "long"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-red-600 hover:bg-red-700"
                 }`}
                 onClick={handlePlaceOrder}
                 disabled={isPlacingOrder || !amount || (orderType === "Limit" && !price)}
               >
-                {isPlacingOrder ? "주문 중..." : `${side === "Buy" ? "매수" : "매도"} 주문`}
+                {isPlacingOrder
+                  ? "주문 중..."
+                  : `${positionType === "long" ? "롱" : "숏"} 포지션 열기`}
               </Button>
 
               {/* Risk Warning */}
