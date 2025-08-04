@@ -65,7 +65,8 @@ async function placeOrders(signal, usersData) {
 
     const amount = user['Limit the amount used($)'] || 0;
     const qty = lastPrice > 0 ? (amount / lastPrice).toFixed(4) : '0';
-    const leverage = Math.min(signal.leverage || 1, user.maxReverage || 1);
+    const userMaxLev = Number(user['maxReverage(1x~100x)']) || 1;
+    const leverage = Math.min(signal.leverage || 1, userMaxLev);
 
     try {
       await axios.post(SET_CREDENTIALS_URL, {
