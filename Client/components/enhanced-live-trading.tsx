@@ -61,6 +61,7 @@ export function EnhancedLiveTrading() {
   >("1m")
   const [geminiAnswer, setGeminiAnswer] = useState<string | null>(null)
   const [isAsking, setIsAsking] = useState(false)
+  const [orderMessage, setOrderMessage] = useState<string | null>(null)
 
   const side = positionType === "long" ? "Buy" : "Sell"
 
@@ -178,6 +179,7 @@ export function EnhancedLiveTrading() {
 
     setIsPlacingOrder(true)
     setError(null)
+    setOrderMessage(null)
 
     try {
       const orderParams = {
@@ -192,7 +194,7 @@ export function EnhancedLiveTrading() {
         stopLoss: stopLoss || undefined,
       }
 
-      await placeOrder(orderParams)
+      const result = await placeOrder(orderParams)
 
       // Reset form
       setAmount("")
@@ -200,10 +202,15 @@ export function EnhancedLiveTrading() {
       setTakeProfit("")
       setStopLoss("")
 
-      // Show success message
-      setError(null)
-    } catch (error) {
+      if (result?.success) {
+        setOrderMessage("주문이 완료되었습니다")
+        setError(null)
+      } else {
+        setError("주문에 실패했습니다")
+      }
+    } catch (error: any) {
       console.error("Order placement failed:", error)
+      setError(error?.message || "주문에 실패했습니다")
     } finally {
       setIsPlacingOrder(false)
     }
@@ -474,7 +481,12 @@ export function EnhancedLiveTrading() {
                 </Alert>
               )}
 
-              {/* Error Display */}
+              {/* Order Result Messages */}
+              {orderMessage && (
+                <Alert>
+                  <AlertDescription>{orderMessage}</AlertDescription>
+                </Alert>
+              )}
               {error && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />

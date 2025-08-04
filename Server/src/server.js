@@ -104,7 +104,9 @@ app.get('/api/orders', async (req, res) => {
   try {
     const result = await restClient.getActiveOrders({ category: 'linear' });
     const count = result?.result?.list?.length || 0;
-    console.log('Fetched', count, 'active orders');
+    if (count > 0) {
+      console.log('Fetched', count, 'active orders');
+    }
     res.json(result);
   } catch (err) {
     console.error('Error fetching orders:', err);
@@ -167,6 +169,7 @@ app.post('/api/set-credentials', (req, res) => {
 });
 
 app.post('/api/order', async (req, res) => {
+  console.log('Received order request:', req.body);
   try {
     const {
       symbol,
@@ -200,10 +203,12 @@ app.post('/api/order', async (req, res) => {
       ...(takeProfit ? { takeProfit, tpSlMode: 'Full' } : {}),
       ...(stopLoss ? { stopLoss, tpSlMode: 'Full' } : {}),
     });
-    res.json(result);
+
+    console.log('Order result:', result);
+    res.json({ success: true, result });
   } catch (err) {
     console.error('Error placing order:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
