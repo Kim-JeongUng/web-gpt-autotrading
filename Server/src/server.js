@@ -32,13 +32,18 @@ initRestClient({
 app.get('/api/klines', async (req, res) => {
   try {
     const {
-      symbol = 'BTCUSDT',
+      symbol,
       interval = '1',
       limit = '200',
       category = 'linear',
       start,
       end,
     } = req.query;
+
+    if (!symbol) {
+      return res.status(400).json({ error: 'symbol is required' });
+    }
+
     const result = await restClient.getKline({
       category,
       symbol,
@@ -49,7 +54,7 @@ app.get('/api/klines', async (req, res) => {
     });
     res.json(result);
   } catch (err) {
-    console.error('Error fetching klines:', err);
+    console.error('Error fetching klines:', err.message, err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -59,7 +64,7 @@ app.get('/api/balance', async (req, res) => {
     const result = await restClient.getWalletBalance({ accountType: 'UNIFIED' });
     res.json(result);
   } catch (err) {
-    console.error('Error fetching balance:', err);
+    console.error('Error fetching balance:', err.message, err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -69,25 +74,31 @@ app.get('/api/positions', async (req, res) => {
     const result = await restClient.getPositionInfo({ category: 'linear' });
     res.json(result);
   } catch (err) {
-    console.error('Error fetching positions:', err);
+    console.error('Error fetching positions:', err.message, err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get('/api/ticker', async (req, res) => {
   try {
-    const { symbol = 'BTCUSDT', category = 'linear' } = req.query;
+    const { symbol, category = 'linear' } = req.query;
+    if (!symbol) {
+      return res.status(400).json({ error: 'symbol is required' });
+    }
     const result = await restClient.getTickers({ category, symbol });
     res.json(result);
   } catch (err) {
-    console.error('Error fetching ticker:', err);
+    console.error('Error fetching ticker:', err.message, err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get('/api/orderbook', async (req, res) => {
   try {
-    const { symbol = 'BTCUSDT', category = 'linear', limit = 25 } = req.query;
+    const { symbol, category = 'linear', limit = 25 } = req.query;
+    if (!symbol) {
+      return res.status(400).json({ error: 'symbol is required' });
+    }
     const result = await restClient.getOrderbook({
       category,
       symbol,
@@ -95,7 +106,7 @@ app.get('/api/orderbook', async (req, res) => {
     });
     res.json(result);
   } catch (err) {
-    console.error('Error fetching orderbook:', err);
+    console.error('Error fetching orderbook:', err.message, err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -107,7 +118,22 @@ app.get('/api/orders', async (req, res) => {
     console.log('Fetched', count, 'active orders');
     res.json(result);
   } catch (err) {
-    console.error('Error fetching orders:', err);
+    console.error('Error fetching orders:', err.message, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/executions', async (req, res) => {
+  try {
+    const { symbol, category = 'linear', limit } = req.query;
+    const result = await restClient.getExecutionList({
+      category,
+      ...(symbol ? { symbol } : {}),
+      ...(limit ? { limit: parseInt(limit, 10) } : {}),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching executions:', err.message, err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -161,7 +187,7 @@ app.post('/api/set-credentials', (req, res) => {
     });
     res.json({ success: true });
   } catch (err) {
-    console.error('Failed to set credentials:', err);
+    console.error('Failed to set credentials:', err.message, err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -190,7 +216,7 @@ app.post('/api/order', async (req, res) => {
     });
     res.json(result);
   } catch (err) {
-    console.error('Error placing order:', err);
+    console.error('Error placing order:', err.message, err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -208,7 +234,7 @@ app.post('/api/amend-order', async (req, res) => {
     });
     res.json(result);
   } catch (err) {
-    console.error('Error amending order:', err);
+    console.error('Error amending order:', err.message, err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -229,7 +255,7 @@ app.post('/api/close-position', async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    console.error('Error closing position:', err);
+    console.error('Error closing position:', err.message, err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -248,7 +274,7 @@ app.post('/api/trading-stop', async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    console.error('Error updating position:', err);
+    console.error('Error updating position:', err.message, err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -222,6 +222,24 @@ export class BybitService {
     }
   }
 
+  async getExecutions(params: { symbol?: string; limit?: number }) {
+    try {
+      const query = new URLSearchParams()
+      if (params.symbol) query.set('symbol', params.symbol)
+      if (params.limit) query.set('limit', params.limit.toString())
+      const res = await fetch(`${SERVER_URL}/api/executions?${query.toString()}`)
+      if (!res.ok) {
+        const message = await res.text()
+        throw new Error(`Server error ${res.status}: ${message}`)
+      }
+      const data = await res.json()
+      return data.result?.list || []
+    } catch (error) {
+      console.error('Error fetching executions:', error)
+      throw error
+    }
+  }
+
   async amendOrder(params: { symbol: string; orderId: string; qty?: string; price?: string }) {
     try {
       const res = await fetch(`${SERVER_URL}/api/amend-order`, {
