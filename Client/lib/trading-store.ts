@@ -36,7 +36,7 @@ interface TradingState {
   setSelectedSymbol: (symbol: string) => void;
   updateTicker: (symbol: string, data: any) => void;
   updateOrderbook: (symbol: string, data: any) => void;
-  refreshAccountData: () => Promise<void>;
+  refreshAccountData: (includeOrders?: boolean) => Promise<void>;
   placeOrder: (orderParams: any) => Promise<any>;
   closePosition: (params: any) => Promise<any>;
   updatePosition: (params: any) => Promise<any>;
@@ -132,16 +132,18 @@ export const useTradingStore = create<TradingState>()(
     }));
   },
 
-  refreshAccountData: async () => {
+  refreshAccountData: async (includeOrders = false) => {
     try {
       const [balance, positions, orders] = await Promise.all([
         bybitService.getAccountBalance(),
         bybitService.getPositions(),
-        bybitService.getActiveOrders(),
+        includeOrders ? bybitService.getActiveOrders() : Promise.resolve(get().orders),
       ]);
 
       set({ balance, positions, orders, error: null });
-      console.log('Loaded', orders.length, 'active orders');
+      if (includeOrders) {
+        console.log('Loaded', orders.length, 'active orders');
+      }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : "Unknown error" });
     }
@@ -150,7 +152,7 @@ export const useTradingStore = create<TradingState>()(
   placeOrder: async (orderParams: any) => {
     try {
       const result = await bybitService.placeOrder(orderParams);
-      get().refreshAccountData(); // Refresh after order
+      get().refreshAccountData(true); // Refresh after order and fetch orders
       return result;
     } catch (error) {
       set({ error: error instanceof Error ? error.message : "Order failed" });

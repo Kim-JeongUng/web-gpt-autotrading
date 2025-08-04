@@ -20,7 +20,8 @@
     "betapublish": "npm publish --tag beta",
     "lint": "eslint src",
     "start": "node src/server.js",
-    "dev": "node src/server.js"
+    "dev": "node src/server.js",
+    "auto": "node src/auto-trader.js"
   },
   "author": "Tiago Siebler (https://github.com/tiagosiebler)",
   "contributors": [],
@@ -36,7 +37,8 @@
     "jsonwebtoken": "^9.0.2",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
-    "ws": "^7.4.0"
+    "ws": "^7.4.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/jest": "^29.5.11",
