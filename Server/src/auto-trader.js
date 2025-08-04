@@ -43,8 +43,8 @@ function parseSignal(text) {
   const levMatch = /(추천 레버리지|leverage)\s*[:\-]?\s*(\d+)/i.exec(text);
   const leverage = levMatch ? parseInt(levMatch[2], 10) : null;
 
-  const tp = /(익절가|take profit)[^$]*\$([\d.]+)/i.exec(text)?.[2];
-  const sl = /(손절가|stop loss)[^$]*\$([\d.]+)/i.exec(text)?.[2];
+const tp = /(익절가|take profit)[^$]*\$([\d,]+)/i.exec(text)?.[2]?.replace(/,/g, '');
+const sl = /(손절가|stop loss)[^$]*\$([\d,]+)/i.exec(text)?.[2]?.replace(/,/g, '');
 
   return { position, leverage, takeProfit: tp, stopLoss: sl };
 }
@@ -52,27 +52,26 @@ function parseSignal(text) {
 async function placeOrders(signal, usersData) {
   const { users, wb, sheetName, headers } = usersData;
   if (!signal.position) return;
-  console.log("AAA");
   const priceRes = await axios.get(TICKER_URL, { params: { symbol: 'BTCUSDT' } });
   const lastPrice = parseFloat(priceRes.data?.result?.list?.[0]?.lastPrice || '0');
 
   const side = signal.position === 'long' ? 'Buy' : signal.position === 'short' ? 'Sell' : null;
-  console.log("A1231231AA");
 
   if (!side) return;
 
   for (const user of users) {
-  console.log("A222AA");
+  console.log(user['now AI trading count(read Only)']);
+  console.log(user['max AI trading count']);
 
     if (user['now AI trading count(read Only)'] >= user['max AI trading count']) continue;
-    if (Math.random() * 100 > (user['Reliability(%)'] || 0)) continue;
 
     const amount = user['Limit the amount used($)'] || 0;
-    const qty = lastPrice > 0 ? (amount / lastPrice).toFixed(4) : '0';
+    const qty = lastPrice > 0 ? (amount / lastPrice).toFixed(3) : '0';
     const userMaxLev = Number(user['maxReverage(1x~100x)']) || 1;
     const leverage = Math.min(signal.leverage || 1, userMaxLev);
 
     try {
+
       await axios.post(SET_CREDENTIALS_URL, {
         apiKey: user['bybit API Key'],
         apiSecret: user['bybit API Screet'],
@@ -117,7 +116,6 @@ async function run() {
     const text = await fetchGeminiSignal();
     const signal = parseSignal(text);
     console.log('[Gemini]', signal);
-    console.log('aaaa' + signal.position);
     if (signal.position === 'long' || signal.position === 'short') {
       const usersData = readUsers();
       await placeOrders(signal, usersData);
