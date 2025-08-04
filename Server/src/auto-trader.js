@@ -25,19 +25,25 @@ async function fetchGeminiSignal() {
 }
 
 function parseSignal(text) {
+  // const position = /포지션 추천:\s*(매수|매도|보류)/.exec(text)?.[1] || '보류';
+  // const leverage = parseInt(/추천 레버리지:\s*(\d+)배/.exec(text)?.[1], 10);
+  // const tp = /익절가[^$]*\$([\d.]+)/.exec(text)?.[1];
+  // const sl = /손절가[^$]*\$([\d.]+)/.exec(text)?.[1];
   const position = /포지션 추천:\s*(매수|매도|보류)/.exec(text)?.[1] || '보류';
-  const leverage = parseInt(/추천 레버리지:\s*(\d+)배/.exec(text)?.[1], 10);
+  const leverage = parseInt(/추천 레버리지:\s*(\d+)[x배]/.exec(text)?.[1] || '0', 10);
   const tp = /익절가[^$]*\$([\d.]+)/.exec(text)?.[1];
   const sl = /손절가[^$]*\$([\d.]+)/.exec(text)?.[1];
   return { position, leverage, takeProfit: tp, stopLoss: sl };
 }
 
 async function placeOrders(signal, users) {
-  if (signal.position !== '매수') return;
-
+  if (signal.position === '보류') return;
   const priceRes = await axios.get(TICKER_URL, { params: { symbol: 'BTCUSDT' } });
   const lastPrice = parseFloat(priceRes.data?.result?.list?.[0]?.lastPrice || '0');
 
+  // 포지션 방향 설정
+  const side = signal.position === '매수' ? 'Buy' : signal.position === '매도' ? 'Sell' : null;
+  if (!side) return;
   for (const user of users) {
     if (user['now AI trading count(read Only)'] >= user['max AI trading count']) continue;
     if (Math.random() * 100 > (user['Reliability(%)'] || 0)) continue;
@@ -47,6 +53,7 @@ async function placeOrders(signal, users) {
       secret: user['bybit API Screet'],
       testnet: !!user.isTestNet,
     });
+    console.log(user.key);
 
     const amount = user['Limit the amount used($)'] || 0;
     const qty = lastPrice > 0 ? (amount / lastPrice).toFixed(4) : '0';
@@ -56,31 +63,47 @@ async function placeOrders(signal, users) {
       await client.submitOrder({
         category: 'linear',
         symbol: 'BTCUSDT',
-        side: 'Buy',
+        side, // Buy or Sell
         orderType: 'Market',
         qty,
         leverage: String(leverage),
       });
+
       await client.setTradingStop({
         category: 'linear',
         symbol: 'BTCUSDT',
         ...(signal.takeProfit ? { takeProfit: signal.takeProfit } : {}),
         ...(signal.stopLoss ? { stopLoss: signal.stopLoss } : {}),
       });
-      console.log(`Placed order for user ${user.id}`);
+
+      // 주문 정보 출력
+      console.log('✅ 주문 완료');
+      console.log(`📌 유저 ID: ${user.id}`);
+      console.log(`🔑 API KEY (앞 6자리): ${user['bybit API Key'].slice(0, 6)}...`);
+      console.log(`📉 현재 가격: ${lastPrice}`);
+      console.log(`📦 주문 수량(BTC): ${qty}`);
+      console.log(`📈 레버리지: ${leverage}x`);
+      console.log(`📄 포지션 방향: ${signal.position} → ${side}`);
+      console.log(`💰 매수 금액($): ${amount}`);
+      if (signal.takeProfit) console.log(`🎯 익절가: $${signal.takeProfit}`);
+      if (signal.stopLoss) console.log(`🛑 손절가: $${signal.stopLoss}`);
+      console.log('----------------------------------------');
+
     } catch (err) {
-      console.error(`Failed order for user ${user.id}:`, err.message);
+      console.error(`❌ 주문 실패 - 유저 ID: ${user.id}:`, err.message);
     }
   }
 }
+
 
 async function run() {
   try {
     const text = await fetchGeminiSignal();
     const signal = parseSignal(text);
     console.log('[Gemini]', signal);
-    if (signal.position === '매수') {
+    if (signal.position === '매수' || signal.position === '매도' ) {
       const users = readUsers();
+      console.log(users)
       await placeOrders(signal, users);
     }
   } catch (err) {
@@ -90,3 +113,4 @@ async function run() {
 
 setInterval(run, INTERVAL_MS);
 run();
+
