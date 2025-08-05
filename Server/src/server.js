@@ -3,6 +3,40 @@ const express = require('express');
 const cors = require('cors');
 const { RestClientV5 } = require('bybit-api');
 const axios = require('axios');
+const XLSX = require('xlsx');
+const path = require('path');
+
+const USER_FILE = path.resolve(__dirname, '../userInfo.xlsx');
+
+function readUsers() {
+  const wb = XLSX.readFile(USER_FILE);
+  const sheetName = wb.SheetNames[0];
+  const sheet = wb.Sheets[sheetName];
+  const headers = XLSX.utils.sheet_to_json(sheet, { header: 1 })[0];
+  const users = XLSX.utils.sheet_to_json(sheet);
+  return { wb, sheetName, headers, users };
+}
+
+function writeUsers({ wb, sheetName, headers, users }) {
+  const sheet = XLSX.utils.json_to_sheet(users, { header: headers });
+  wb.Sheets[sheetName] = sheet;
+  XLSX.writeFile(wb, USER_FILE);
+}
+
+function upsertUser({ oauthToken, apiKey, apiSecret, isTestNet }) {
+  const data = readUsers();
+  const { users } = data;
+  let user = users.find((u) => u.googleOauth === oauthToken);
+  if (!user) {
+    const nextId = users.reduce((max, u) => Math.max(max, u.id || 0), 0) + 1;
+    user = { id: nextId, googleOauth: oauthToken };
+    users.push(user);
+  }
+  if (apiKey) user['bybit API Key'] = apiKey;
+  if (apiSecret) user['bybit API Screet'] = apiSecret;
+  if (typeof isTestNet !== 'undefined') user.isTestNet = isTestNet ? 1 : 0;
+  writeUsers(data);
+}
 
 const app = express();
 app.use(cors());
@@ -27,6 +61,20 @@ initRestClient({
   apiKey: process.env.BYBIT_API_KEY,
   apiSecret: process.env.BYBIT_API_SECRET,
   testnet: process.env.BYBIT_TESTNET === 'true',
+});
+
+app.post('/api/login', (req, res) => {
+  const { oauthToken } = req.body;
+  if (!oauthToken) {
+    return res.status(400).json({ error: 'oauthToken required' });
+  }
+  try {
+    upsertUser({ oauthToken });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Failed to save oauth token:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/klines', async (req, res) => {
@@ -154,13 +202,13 @@ app.post('/api/validate', async (req, res) => {
 });
 
 app.post('/api/set-credentials', (req, res) => {
-  const { apiKey, apiSecret, testnet } = req.body;
+  const { apiKey, apiSecret, testnet, oauthToken } = req.body;
   try {
-    initRestClient({
-      apiKey,
-      apiSecret,
-      testnet: testnet === true || testnet === 'true',
-    });
+    const isTestnet = testnet === true || testnet === 'true';
+    initRestClient({ apiKey, apiSecret, testnet: isTestnet });
+    if (oauthToken && apiKey && apiSecret) {
+      upsertUser({ oauthToken, apiKey, apiSecret, isTestNet: isTestnet });
+    }
     res.json({ success: true });
   } catch (err) {
     console.error('Failed to set credentials:', err);
@@ -226,6 +274,22 @@ app.post('/api/amend-order', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Error amending order:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cancel-order', async (req, res) => {
+  try {
+    const { symbol, orderId } = req.body;
+
+    const result = await restClient.cancelOrder({
+      category: 'linear',
+      symbol,
+      orderId,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error canceling order:', err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -21,36 +21,21 @@ export function ApiSettings() {
     error,
     setApiCredentials,
     toggleTradingMode,
-    testApiKey,
-    testApiSecret,
-    liveApiKey,
-    liveApiSecret,
   } = useTradingStore()
 
   const [localApiKey, setLocalApiKey] = useState(apiKey)
   const [localApiSecret, setLocalApiSecret] = useState(apiSecret)
   const [showSecrets, setShowSecrets] = useState(false)
 
-  // Sync local input state with persisted store values
   useEffect(() => {
-    setLocalApiKey(isTestnet ? testApiKey : liveApiKey)
-    setLocalApiSecret(isTestnet ? testApiSecret : liveApiSecret)
-  }, [isTestnet, testApiKey, testApiSecret, liveApiKey, liveApiSecret])
-
-  // Re-validate credentials on mount when they exist
-  useEffect(() => {
-    if (apiKey && apiSecret && !isConnected && !isCheckingCredentials) {
-      setApiCredentials(apiKey, apiSecret)
-    }
+    setLocalApiKey(apiKey)
+    setLocalApiSecret(apiSecret)
   }, [apiKey, apiSecret])
 
   const handleSaveCredentials = () => {
     setApiCredentials(localApiKey, localApiSecret)
-  }
-
-  const maskSecret = (secret: string) => {
-    if (!secret) return ""
-    return secret.slice(0, 8) + "•".repeat(Math.max(0, secret.length - 8))
+    setLocalApiKey("")
+    setLocalApiSecret("")
   }
 
   return (
@@ -168,7 +153,7 @@ export function ApiSettings() {
           </div>
 
           {/* 현재 설정 요약 */}
-          {(apiKey) && (
+          {isConnected && (
             <div className="space-y-3 p-4 bg-muted rounded-lg">
               <h4 className="font-medium">현재 설정</h4>
               <div className="space-y-2 text-sm">
@@ -176,12 +161,10 @@ export function ApiSettings() {
                   <span>네트워크:</span>
                   <span>{isTestnet ? "테스트넷" : "메인넷"}</span>
                 </div>
-                {apiKey && (
-                  <div className="flex justify-between">
-                    <span>API Key:</span>
-                    <span className="font-mono">{maskSecret(apiKey)}</span>
-                  </div>
-                )}
+                <div className="flex justify-between">
+                  <span>API Key:</span>
+                  <span className="font-mono">저장됨</span>
+                </div>
               </div>
             </div>
           )}
