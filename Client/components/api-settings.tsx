@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,44 +13,36 @@ import { Key, Shield, AlertTriangle, CheckCircle } from "lucide-react"
 
 export function ApiSettings() {
   const {
-    apiKey,
-    apiSecret,
     isTestnet,
     isConnected,
     isCheckingCredentials,
     error,
     setApiCredentials,
     toggleTradingMode,
-    testApiKey,
-    testApiSecret,
-    liveApiKey,
-    liveApiSecret,
   } = useTradingStore()
 
-  const [localApiKey, setLocalApiKey] = useState(apiKey)
-  const [localApiSecret, setLocalApiSecret] = useState(apiSecret)
-  const [showSecrets, setShowSecrets] = useState(false)
+  const [localApiKey, setLocalApiKey] = useState("")
+  const [localApiSecret, setLocalApiSecret] = useState("")
+  const [showApiKey, setShowApiKey] = useState(false)
 
-  // Sync local input state with persisted store values
-  useEffect(() => {
-    setLocalApiKey(isTestnet ? testApiKey : liveApiKey)
-    setLocalApiSecret(isTestnet ? testApiSecret : liveApiSecret)
-  }, [isTestnet, testApiKey, testApiSecret, liveApiKey, liveApiSecret])
-
-  // Re-validate credentials on mount when they exist
-  useEffect(() => {
-    if (apiKey && apiSecret && !isConnected && !isCheckingCredentials) {
-      setApiCredentials(apiKey, apiSecret)
+  const handleSaveCredentials = async () => {
+    const token = localStorage.getItem("oauthToken")
+    try {
+      await fetch("http://localhost:4000/api/user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          googleOauth: token,
+          apiKey: localApiKey,
+          apiSecret: localApiSecret,
+          isTestNet: isTestnet,
+        }),
+      })
+      await setApiCredentials(localApiKey, localApiSecret)
+    } finally {
+      setLocalApiKey("")
+      setLocalApiSecret("")
     }
-  }, [apiKey, apiSecret])
-
-  const handleSaveCredentials = () => {
-    setApiCredentials(localApiKey, localApiSecret)
-  }
-
-  const maskSecret = (secret: string) => {
-    if (!secret) return ""
-    return secret.slice(0, 8) + "•".repeat(Math.max(0, secret.length - 8))
   }
 
   return (
@@ -88,7 +80,7 @@ export function ApiSettings() {
                 <Input
                   id="apiKey"
                   name="api-key"
-                  type={showSecrets ? "text" : "password"}
+                  type={showApiKey ? "text" : "password"}
                   placeholder="Bybit API Key 입력"
                   value={localApiKey}
                   autoComplete="new-password"
@@ -99,9 +91,9 @@ export function ApiSettings() {
                   variant="ghost"
                   size="sm"
                   className="absolute right-2 top-1/2 -translate-y-1/2"
-                  onClick={() => setShowSecrets(!showSecrets)}
+                  onClick={() => setShowApiKey(!showApiKey)}
                 >
-                  {showSecrets ? "숨기기" : "보기"}
+                  {showApiKey ? "숨기기" : "보기"}
                 </Button>
                 <Button
                   asChild
@@ -126,7 +118,7 @@ export function ApiSettings() {
               <Input
                 id="apiSecret"
                 name="api-secret"
-                type={showSecrets ? "text" : "password"}
+                type="password"
                 placeholder="Bybit API Secret 입력"
                 value={localApiSecret}
                 autoComplete="new-password"
@@ -167,24 +159,20 @@ export function ApiSettings() {
             <Badge variant={isConnected ? "default" : "secondary"}>{isConnected ? "활성" : "비활성"}</Badge>
           </div>
 
-          {/* 현재 설정 요약 */}
-          {(apiKey) && (
-            <div className="space-y-3 p-4 bg-muted rounded-lg">
-              <h4 className="font-medium">현재 설정</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>네트워크:</span>
-                  <span>{isTestnet ? "테스트넷" : "메인넷"}</span>
-                </div>
-                {apiKey && (
-                  <div className="flex justify-between">
-                    <span>API Key:</span>
-                    <span className="font-mono">{maskSecret(apiKey)}</span>
-                  </div>
-                )}
+          {/* 현재 설정 요약 (API 키는 저장 후 표시되지 않음) */}
+          <div className="space-y-3 p-4 bg-muted rounded-lg">
+            <h4 className="font-medium">현재 설정</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span>네트워크:</span>
+                <span>{isTestnet ? "테스트넷" : "메인넷"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>API Key:</span>
+                <span className="font-mono">저장됨</span>
               </div>
             </div>
-          )}
+          </div>
 
           {/* 에러 표시 */}
           {error && (

@@ -23,7 +23,22 @@ export function LoginForm() {
 
   const router = useRouter();
 
-  const handleOAuthLogin = (provider: string) => router.push(`/dashboard`);
+  const handleOAuthLogin = async (provider: string) => {
+    const token = prompt("OAuth token") || "";
+    if (token) {
+      try {
+        await fetch("http://localhost:4000/api/user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ googleOauth: token }),
+        });
+        localStorage.setItem("oauthToken", token);
+      } catch (err) {
+        console.error("Failed to save OAuth token", err);
+      }
+      router.push(`/dashboard`);
+    }
+  };
 
   const handleEmailLogin = (e: React.FormEvent) => {
     e.preventDefault();
