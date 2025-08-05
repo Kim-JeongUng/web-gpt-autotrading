@@ -6,13 +6,7 @@ import { bybitService } from "./bybit-client";
 
 interface TradingState {
   // API Configuration
-  apiKey: string;
-  apiSecret: string;
   isTestnet: boolean;
-  testApiKey: string;
-  testApiSecret: string;
-  liveApiKey: string;
-  liveApiSecret: string;
 
   // Market Data
   tickers: Record<string, any>;
@@ -47,13 +41,7 @@ export const useTradingStore = create<TradingState>()(
   persist(
     (set, get) => ({
   // Initial state
-  apiKey: "",
-  apiSecret: "",
   isTestnet: false,
-  testApiKey: "",
-  testApiSecret: "",
-  liveApiKey: "",
-  liveApiSecret: "",
   tickers: {},
   orderbooks: {},
   balance: null,
@@ -67,14 +55,7 @@ export const useTradingStore = create<TradingState>()(
   // Actions
   setApiCredentials: async (apiKey: string, apiSecret: string) => {
     const isTestnet = get().isTestnet;
-    set({
-      apiKey,
-      apiSecret,
-      isCheckingCredentials: true,
-      ...(isTestnet
-        ? { testApiKey: apiKey, testApiSecret: apiSecret }
-        : { liveApiKey: apiKey, liveApiSecret: apiSecret }),
-    });
+    set({ isCheckingCredentials: true });
     await bybitService.setCredentials(apiKey, apiSecret, isTestnet);
 
     try {
@@ -91,19 +72,7 @@ export const useTradingStore = create<TradingState>()(
 
   toggleTradingMode: () => {
     const useTestnet = !get().isTestnet;
-    const apiKey = useTestnet ? get().testApiKey : get().liveApiKey;
-    const apiSecret = useTestnet ? get().testApiSecret : get().liveApiSecret;
-    set({
-      isTestnet: useTestnet,
-      apiKey,
-      apiSecret,
-    });
-    if (apiKey && apiSecret) {
-      get().setApiCredentials(apiKey, apiSecret);
-    } else {
-      bybitService.setCredentials(apiKey, apiSecret, useTestnet);
-      set({ isConnected: false });
-    }
+    set({ isTestnet: useTestnet, isConnected: false });
   },
 
   setSelectedSymbol: (symbol: string) => {
@@ -189,13 +158,7 @@ export const useTradingStore = create<TradingState>()(
     {
       name: "trading-store",
       partialize: (state) => ({
-        apiKey: state.apiKey,
-        apiSecret: state.apiSecret,
         isTestnet: state.isTestnet,
-        testApiKey: state.testApiKey,
-        testApiSecret: state.testApiSecret,
-        liveApiKey: state.liveApiKey,
-        liveApiSecret: state.liveApiSecret,
         selectedSymbol: state.selectedSymbol,
       }),
     },

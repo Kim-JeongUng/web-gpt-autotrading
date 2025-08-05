@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const { RestClientV5 } = require('bybit-api');
 const axios = require('axios');
+const XLSX = require('xlsx');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -28,6 +30,23 @@ initRestClient({
   apiSecret: process.env.BYBIT_API_SECRET,
   testnet: process.env.BYBIT_TESTNET === 'true',
 });
+
+const USER_FILE = path.resolve(__dirname, '../userInfo.xlsx');
+
+function readUsers() {
+  const wb = XLSX.readFile(USER_FILE);
+  const sheetName = wb.SheetNames[0];
+  const sheet = wb.Sheets[sheetName];
+  const headers = XLSX.utils.sheet_to_json(sheet, { header: 1 })[0];
+  const users = XLSX.utils.sheet_to_json(sheet);
+  return { wb, sheetName, headers, users };
+}
+
+function writeUsers({ wb, sheetName, headers, users }) {
+  const sheet = XLSX.utils.json_to_sheet(users, { header: headers });
+  wb.Sheets[sheetName] = sheet;
+  XLSX.writeFile(wb, USER_FILE);
+}
 
 app.get('/api/klines', async (req, res) => {
   try {
@@ -164,6 +183,33 @@ app.post('/api/set-credentials', (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Failed to set credentials:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/user', (req, res) => {
+  const { googleOauth, apiKey, apiSecret, isTestNet } = req.body;
+
+  if (!googleOauth) {
+    return res.status(400).json({ error: 'googleOauth required' });
+  }
+
+  try {
+    const data = readUsers();
+    let user = data.users.find((u) => u.googleOauth === googleOauth);
+    if (!user) {
+      user = { id: data.users.length + 1, googleOauth };
+      data.users.push(user);
+    }
+    if (apiKey) user['bybit API Key'] = apiKey;
+    if (apiSecret) user['bybit API Screet'] = apiSecret;
+    if (typeof isTestNet !== 'undefined') {
+      user.isTestNet = isTestNet ? 1 : 0;
+    }
+    writeUsers(data);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Failed to write user info:', err);
     res.status(500).json({ error: err.message });
   }
 });
