@@ -16,14 +16,30 @@ import { Separator } from "@/components/ui/separator";
 import { Chrome, Github } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Form from "@/app/(login)/_components/Form";
+import { useTradingStore } from "@/lib/trading-store";
+
+const SERVER_URL =
+  process.env.NEXT_PUBLIC_TRADING_SERVER || "http://localhost:4000";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const router = useRouter();
+  const { setOauthToken } = useTradingStore();
 
-  const handleOAuthLogin = (provider: string) => router.push(`/dashboard`);
+  const handleOAuthLogin = async (provider: string) => {
+    if (provider !== "google") return;
+    const token = window.prompt("Google OAuth Token") || "";
+    if (!token) return;
+    await fetch(`${SERVER_URL}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ oauthToken: token }),
+    });
+    setOauthToken(token);
+    router.push(`/dashboard`);
+  };
 
   const handleEmailLogin = (e: React.FormEvent) => {
     e.preventDefault();

@@ -9,10 +9,7 @@ interface TradingState {
   apiKey: string;
   apiSecret: string;
   isTestnet: boolean;
-  testApiKey: string;
-  testApiSecret: string;
-  liveApiKey: string;
-  liveApiSecret: string;
+  oauthToken: string;
 
   // Market Data
   tickers: Record<string, any>;
@@ -33,6 +30,7 @@ interface TradingState {
   // Actions
   setApiCredentials: (apiKey: string, apiSecret: string) => Promise<void>;
   toggleTradingMode: () => void;
+  setOauthToken: (token: string) => void;
   setSelectedSymbol: (symbol: string) => void;
   updateTicker: (symbol: string, data: any) => void;
   updateOrderbook: (symbol: string, data: any) => void;
@@ -50,10 +48,7 @@ export const useTradingStore = create<TradingState>()(
   apiKey: "",
   apiSecret: "",
   isTestnet: false,
-  testApiKey: "",
-  testApiSecret: "",
-  liveApiKey: "",
-  liveApiSecret: "",
+  oauthToken: "",
   tickers: {},
   orderbooks: {},
   balance: null,
@@ -67,16 +62,8 @@ export const useTradingStore = create<TradingState>()(
   // Actions
   setApiCredentials: async (apiKey: string, apiSecret: string) => {
     const isTestnet = get().isTestnet;
-    set({
-      apiKey,
-      apiSecret,
-      isCheckingCredentials: true,
-      ...(isTestnet
-        ? { testApiKey: apiKey, testApiSecret: apiSecret }
-        : { liveApiKey: apiKey, liveApiSecret: apiSecret }),
-    });
-    await bybitService.setCredentials(apiKey, apiSecret, isTestnet);
-
+    set({ apiKey, apiSecret, isCheckingCredentials: true });
+    await bybitService.setCredentials(apiKey, apiSecret, isTestnet, get().oauthToken);
     try {
       await bybitService.validateCredentials(apiKey, apiSecret, isTestnet);
       set({ isConnected: true, isCheckingCredentials: false, error: null });
@@ -86,24 +73,13 @@ export const useTradingStore = create<TradingState>()(
         isCheckingCredentials: false,
         error: err instanceof Error ? err.message : "Invalid credentials",
       });
+    } finally {
+      set({ apiKey: "", apiSecret: "" });
     }
   },
 
   toggleTradingMode: () => {
-    const useTestnet = !get().isTestnet;
-    const apiKey = useTestnet ? get().testApiKey : get().liveApiKey;
-    const apiSecret = useTestnet ? get().testApiSecret : get().liveApiSecret;
-    set({
-      isTestnet: useTestnet,
-      apiKey,
-      apiSecret,
-    });
-    if (apiKey && apiSecret) {
-      get().setApiCredentials(apiKey, apiSecret);
-    } else {
-      bybitService.setCredentials(apiKey, apiSecret, useTestnet);
-      set({ isConnected: false });
-    }
+    set({ isTestnet: !get().isTestnet });
   },
 
   setSelectedSymbol: (symbol: string) => {
@@ -185,18 +161,17 @@ export const useTradingStore = create<TradingState>()(
   setError: (error: string | null) => {
     set({ error });
   },
+
+  setOauthToken: (token: string) => {
+    set({ oauthToken: token });
+  },
     }),
     {
       name: "trading-store",
       partialize: (state) => ({
-        apiKey: state.apiKey,
-        apiSecret: state.apiSecret,
         isTestnet: state.isTestnet,
-        testApiKey: state.testApiKey,
-        testApiSecret: state.testApiSecret,
-        liveApiKey: state.liveApiKey,
-        liveApiSecret: state.liveApiSecret,
         selectedSymbol: state.selectedSymbol,
+        oauthToken: state.oauthToken,
       }),
     },
   ),
