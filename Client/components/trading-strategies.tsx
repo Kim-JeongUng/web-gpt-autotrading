@@ -7,11 +7,11 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Edit, Trash2 } from "lucide-react"
 
 const SERVER_URL = process.env.NEXT_PUBLIC_TRADING_SERVER || "http://localhost:4000"
 
 interface Strategy {
-  id: number
   coin: string
   "Limit the amount used($)": number
   "maxReverage(1x~100x)": number
@@ -34,6 +34,7 @@ export function TradingStrategies() {
   const [leverage, setLeverage] = useState("")
   const [reliability, setReliability] = useState("")
   const [maxAi, setMaxAi] = useState("")
+  const [editingCoin, setEditingCoin] = useState<string | null>(null)
 
   const user = "user111"
 
@@ -55,8 +56,12 @@ export function TradingStrategies() {
 
   const handleSubmit = async () => {
     try {
-      await fetch(`${SERVER_URL}/api/strategies`, {
-        method: "POST",
+      const method = editingCoin ? "PUT" : "POST"
+      const url = editingCoin
+        ? `${SERVER_URL}/api/strategies/${editingCoin}`
+        : `${SERVER_URL}/api/strategies`
+      await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           googleOauth: user,
@@ -67,15 +72,41 @@ export function TradingStrategies() {
           maxAiTradingCount: Number(maxAi),
         }),
       })
-      setCoin("BTCUSDT")
-      setLimit("")
-      setLeverage("")
-      setReliability("")
-      setMaxAi("")
-      setOpen(false)
+      resetForm()
       loadStrategies()
     } catch (err) {
       console.error("Failed to save strategy", err)
+    }
+  }
+
+  const resetForm = () => {
+    setCoin("BTCUSDT")
+    setLimit("")
+    setLeverage("")
+    setReliability("")
+    setMaxAi("")
+    setEditingCoin(null)
+    setOpen(false)
+  }
+
+  const handleEdit = (s: Strategy) => {
+    setCoin(s.coin)
+    setLimit(String(s["Limit the amount used($)"]))
+    setLeverage(String(s["maxReverage(1x~100x)"]))
+    setReliability(String(s["Reliability(%)"]))
+    setMaxAi(String(s["max AI trading count"]))
+    setEditingCoin(s.coin)
+    setOpen(true)
+  }
+
+  const handleDelete = async (c: string) => {
+    try {
+      await fetch(`${SERVER_URL}/api/strategies/${c}?user=${user}`, {
+        method: "DELETE",
+      })
+      loadStrategies()
+    } catch (err) {
+      console.error("Failed to delete strategy", err)
     }
   }
 
@@ -130,10 +161,10 @@ export function TradingStrategies() {
                 </div>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setOpen(false)}>
+                <Button variant="outline" onClick={resetForm}>
                   취소
                 </Button>
-                <Button onClick={handleSubmit}>저장</Button>
+                <Button onClick={handleSubmit}>{editingCoin ? "수정" : "저장"}</Button>
               </div>
             </div>
           </DialogContent>
@@ -142,12 +173,22 @@ export function TradingStrategies() {
 
       <div className="grid gap-6">
         {strategies.map((s) => (
-          <Card key={s.id}>
-            <CardHeader>
-              <CardTitle>{s.coin}</CardTitle>
-              <CardDescription>
-                Limit ${s["Limit the amount used($)"]} / Leverage {s["maxReverage(1x~100x)"]}x
-              </CardDescription>
+          <Card key={s.coin} className="relative">
+            <CardHeader className="flex flex-row items-start justify-between space-y-0">
+              <div>
+                <CardTitle>{s.coin}</CardTitle>
+                <CardDescription>
+                  Limit ${s["Limit the amount used($)"]} / Leverage {s["maxReverage(1x~100x)"]}x
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button size="icon" variant="ghost" onClick={() => handleEdit(s)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => handleDelete(s.coin)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 text-sm">
               <div>

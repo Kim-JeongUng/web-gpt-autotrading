@@ -353,18 +353,26 @@ app.post('/api/trading-stop', async (req, res) => {
   }
 });
 
-function readStrategies() {
+function readUsers() {
   const workbook = xlsx.readFile(USER_INFO_PATH);
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const data = xlsx.utils.sheet_to_json(sheet, { defval: '' });
-  return { workbook, data };
+  const users = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+  return { workbook, users };
+}
+
+function writeUsers(workbook, users) {
+  const newSheet = xlsx.utils.json_to_sheet(users);
+  workbook.Sheets[workbook.SheetNames[0]] = newSheet;
+  xlsx.writeFile(workbook, USER_INFO_PATH);
 }
 
 app.get('/api/strategies', (req, res) => {
   try {
     const { user } = req.query;
-    const { data } = readStrategies();
-    const list = user ? data.filter((r) => r.googleOauth === user) : data;
+    const { users } = readUsers();
+    const row = users.find((r) => r.googleOauth === user);
+    const strategies = row?.strategies ? JSON.parse(row.strategies) : {};
+    const list = Object.entries(strategies).map(([coin, s]) => ({ coin, ...s }));
     res.json(list);
   } catch (err) {
     console.error('Error reading strategies:', err);
@@ -385,32 +393,78 @@ app.post('/api/strategies', (req, res) => {
     if (!googleOauth) {
       return res.status(400).json({ error: 'googleOauth required' });
     }
-    const { workbook, data } = readStrategies();
-
-    if (!data.length || !('coin' in data[0])) {
-      data.forEach((r) => {
-        if (!('coin' in r)) r.coin = '';
-      });
+    const { workbook, users } = readUsers();
+    let row = users.find((r) => r.googleOauth === googleOauth);
+    if (!row) {
+      const newId = users.reduce((max, r) => Math.max(max, r.id || 0), 0) + 1;
+      row = { id: newId, googleOauth, strategies: '{}' };
+      users.push(row);
     }
-
-    const newId = data.reduce((max, r) => Math.max(max, r.id || 0), 0) + 1;
-    data.push({
-      id: newId,
-      googleOauth,
-      coin,
+    const strategies = row.strategies ? JSON.parse(row.strategies) : {};
+    strategies[coin] = {
       'Limit the amount used($)': limitAmount,
       'maxReverage(1x~100x)': maxReverage,
       'Reliability(%)': reliability,
       'max AI trading count': maxAiTradingCount,
-      'now AI trading count(read Only)': 0,
-    });
-
-    const newSheet = xlsx.utils.json_to_sheet(data);
-    workbook.Sheets[workbook.SheetNames[0]] = newSheet;
-    xlsx.writeFile(workbook, USER_INFO_PATH);
+      'now AI trading count(read Only)':
+        strategies[coin]?.['now AI trading count(read Only)'] || 0,
+    };
+    row.strategies = JSON.stringify(strategies);
+    writeUsers(workbook, users);
     res.json({ success: true });
   } catch (err) {
     console.error('Error saving strategy:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/strategies/:coin', (req, res) => {
+  try {
+    const { coin } = req.params;
+    const {
+      googleOauth,
+      limitAmount,
+      maxReverage,
+      reliability,
+      maxAiTradingCount,
+    } = req.body;
+    const { workbook, users } = readUsers();
+    const row = users.find((r) => r.googleOauth === googleOauth);
+    if (!row) return res.status(404).json({ error: 'User not found' });
+    const strategies = row.strategies ? JSON.parse(row.strategies) : {};
+    if (!strategies[coin]) return res.status(404).json({ error: 'Strategy not found' });
+    strategies[coin] = {
+      'Limit the amount used($)': limitAmount,
+      'maxReverage(1x~100x)': maxReverage,
+      'Reliability(%)': reliability,
+      'max AI trading count': maxAiTradingCount,
+      'now AI trading count(read Only)':
+        strategies[coin]['now AI trading count(read Only)'] || 0,
+    };
+    row.strategies = JSON.stringify(strategies);
+    writeUsers(workbook, users);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating strategy:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/strategies/:coin', (req, res) => {
+  try {
+    const { coin } = req.params;
+    const { user } = req.query;
+    const { workbook, users } = readUsers();
+    const row = users.find((r) => r.googleOauth === user);
+    if (!row) return res.status(404).json({ error: 'User not found' });
+    const strategies = row.strategies ? JSON.parse(row.strategies) : {};
+    if (!strategies[coin]) return res.status(404).json({ error: 'Strategy not found' });
+    delete strategies[coin];
+    row.strategies = JSON.stringify(strategies);
+    writeUsers(workbook, users);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting strategy:', err);
     res.status(500).json({ error: err.message });
   }
 });
