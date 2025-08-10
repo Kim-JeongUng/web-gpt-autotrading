@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 const SERVER_URL = process.env.NEXT_PUBLIC_TRADING_SERVER || "http://localhost:4000"
 
@@ -27,7 +28,7 @@ const COINS = [
 
 export function TradingStrategies() {
   const [strategies, setStrategies] = useState<Strategy[]>([])
-  const [isAdding, setIsAdding] = useState(false)
+  const [open, setOpen] = useState(false)
   const [coin, setCoin] = useState("BTCUSDT")
   const [limit, setLimit] = useState("")
   const [leverage, setLeverage] = useState("")
@@ -71,7 +72,7 @@ export function TradingStrategies() {
       setLeverage("")
       setReliability("")
       setMaxAi("")
-      setIsAdding(false)
+      setOpen(false)
       loadStrategies()
     } catch (err) {
       console.error("Failed to save strategy", err)
@@ -85,58 +86,59 @@ export function TradingStrategies() {
           <h2 className="text-2xl font-bold">거래 전략</h2>
           <p className="text-muted-foreground">AI가 추천하는 거래 전략을 관리하세요</p>
         </div>
-        <Button onClick={() => setIsAdding((v) => !v)}>새 전략 추가</Button>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button>새 전략 추가</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>전략 추가</DialogTitle>
+              <DialogDescription>새로운 거래 전략을 설정하세요</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>코인</Label>
+                <Select value={coin} onValueChange={setCoin}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COINS.map((c) => (
+                      <SelectItem key={c.symbol} value={c.symbol}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Limit the amount used ($)</Label>
+                  <Input value={limit} onChange={(e) => setLimit(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>maxReverage (1x~100x)</Label>
+                  <Input value={leverage} onChange={(e) => setLeverage(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Reliability (%)</Label>
+                  <Input value={reliability} onChange={(e) => setReliability(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>max AI trading count</Label>
+                  <Input value={maxAi} onChange={(e) => setMaxAi(e.target.value)} />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  취소
+                </Button>
+                <Button onClick={handleSubmit}>저장</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
-
-      {isAdding && (
-        <Card>
-          <CardHeader>
-            <CardTitle>전략 추가</CardTitle>
-            <CardDescription>새로운 거래 전략을 설정하세요</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>코인</Label>
-              <Select value={coin} onValueChange={setCoin}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {COINS.map((c) => (
-                    <SelectItem key={c.symbol} value={c.symbol}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Limit the amount used ($)</Label>
-                <Input value={limit} onChange={(e) => setLimit(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>maxReverage (1x~100x)</Label>
-                <Input value={leverage} onChange={(e) => setLeverage(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Reliability (%)</Label>
-                <Input value={reliability} onChange={(e) => setReliability(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>max AI trading count</Label>
-                <Input value={maxAi} onChange={(e) => setMaxAi(e.target.value)} />
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsAdding(false)}>
-                취소
-              </Button>
-              <Button onClick={handleSubmit}>저장</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid gap-6">
         {strategies.map((s) => (

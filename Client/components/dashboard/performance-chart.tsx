@@ -14,11 +14,6 @@ export function PerformanceChart() {
       { date: "01/22", portfolio: 124200, benchmark: 122100 },
       { date: "01/23", portfolio: 125430, benchmark: 123500 },
     ],
-    strategies: [
-      { name: "Gemini Momentum", return: 8.2, sharpe: 1.45, maxDrawdown: -3.2, trades: 45 },
-      { name: "Mean Reversion", return: 4.1, sharpe: 1.12, maxDrawdown: -2.1, trades: 32 },
-      { name: "Breakout Hunter", return: -1.2, sharpe: -0.23, maxDrawdown: -5.8, trades: 28 },
-    ],
     allocation: [
       { asset: "BTC", percentage: 45, value: 56443.5 },
       { asset: "ETH", percentage: 30, value: 37629.15 },
@@ -31,13 +26,12 @@ export function PerformanceChart() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold">수익률 분석</h2>
-        <p className="text-muted-foreground">포트폴리오 성과와 전략별 수익률을 분석하세요</p>
+        <p className="text-muted-foreground">포트폴리오 성과를 분석하세요</p>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList>
           <TabsTrigger value="overview">전체 현황</TabsTrigger>
-          <TabsTrigger value="strategies">전략별 분석</TabsTrigger>
           <TabsTrigger value="allocation">자산 배분</TabsTrigger>
         </TabsList>
 
@@ -117,51 +111,6 @@ export function PerformanceChart() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="strategies" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>전략별 성과 비교</CardTitle>
-              <CardDescription>각 AI 전략의 상세 성과 분석</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {performanceData.strategies.map((strategy, index) => (
-                  <div key={index} className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold">{strategy.name}</h3>
-                      <Badge variant={strategy.return >= 0 ? "default" : "destructive"}>
-                        {strategy.return >= 0 ? "+" : ""}
-                        {strategy.return}%
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <div className="text-muted-foreground">수익률</div>
-                        <div className={`font-medium ${strategy.return >= 0 ? "text-green-600" : "text-red-600"}`}>
-                          {strategy.return >= 0 ? "+" : ""}
-                          {strategy.return}%
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">샤프 비율</div>
-                        <div className="font-medium">{strategy.sharpe}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">최대 낙폭</div>
-                        <div className="font-medium text-red-600">{strategy.maxDrawdown}%</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">거래 횟수</div>
-                        <div className="font-medium">{strategy.trades}회</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="allocation" className="space-y-6">

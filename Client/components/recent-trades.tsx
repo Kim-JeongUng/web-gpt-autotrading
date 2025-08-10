@@ -14,7 +14,6 @@ const trades = [
     price: 43250.0,
     profit: 234.5,
     time: "2024-01-15 14:30:25",
-    strategy: "BTC 트렌드 추종",
   },
   {
     id: 2,
@@ -24,7 +23,6 @@ const trades = [
     price: 2580.0,
     profit: -45.2,
     time: "2024-01-15 13:45:12",
-    strategy: "ETH 변동성 거래",
   },
   {
     id: 3,
@@ -34,7 +32,6 @@ const trades = [
     price: 98.5,
     profit: 156.8,
     time: "2024-01-15 12:20:08",
-    strategy: "SOL 모멘텀 전략",
   },
   {
     id: 4,
@@ -44,7 +41,6 @@ const trades = [
     price: 43180.0,
     profit: 89.4,
     time: "2024-01-15 11:15:33",
-    strategy: "BTC 트렌드 추종",
   },
   {
     id: 5,
@@ -54,7 +50,6 @@ const trades = [
     price: 2595.0,
     profit: 67.3,
     time: "2024-01-15 10:30:45",
-    strategy: "ETH 변동성 거래",
   },
 ]
 
@@ -74,7 +69,6 @@ export function RecentTrades() {
               <TableHead>수량</TableHead>
               <TableHead>가격</TableHead>
               <TableHead>수익</TableHead>
-              <TableHead>전략</TableHead>
               <TableHead>시간</TableHead>
             </TableRow>
           </TableHeader>
@@ -99,7 +93,6 @@ export function RecentTrades() {
                     </span>
                   </div>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{trade.strategy}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{trade.time}</TableCell>
               </TableRow>
             ))}

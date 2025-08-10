@@ -18,7 +18,6 @@ export function RecentTrades() {
       price: 42350.5,
       pnl: 234.5,
       pnlPercent: 1.1,
-      strategy: "Gemini Momentum",
       status: "FILLED",
     },
     {
@@ -31,7 +30,6 @@ export function RecentTrades() {
       price: 2580.3,
       pnl: -45.2,
       pnlPercent: -0.8,
-      strategy: "Mean Reversion",
       status: "FILLED",
     },
     {
@@ -44,7 +42,6 @@ export function RecentTrades() {
       price: 0.527,
       pnl: 15.6,
       pnlPercent: 3.2,
-      strategy: "Breakout Hunter",
       status: "FILLED",
     },
     {
@@ -57,7 +54,6 @@ export function RecentTrades() {
       price: 98.75,
       pnl: -78.3,
       pnlPercent: -1.5,
-      strategy: "Gemini Momentum",
       status: "FILLED",
     },
   ]
@@ -90,7 +86,6 @@ export function RecentTrades() {
                 <TableHead>수량</TableHead>
                 <TableHead>가격</TableHead>
                 <TableHead>P&L</TableHead>
-                <TableHead>전략</TableHead>
                 <TableHead>상태</TableHead>
               </TableRow>
             </TableHeader>
@@ -128,11 +123,6 @@ export function RecentTrades() {
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs">
-                      {trade.strategy}
-                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge
