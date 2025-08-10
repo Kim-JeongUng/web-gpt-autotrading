@@ -19,7 +19,7 @@ const SUPPORTED_SYMBOLS = [
   { symbol: "BTCUSDT", name: "Bitcoin" },
   { symbol: "ETHUSDT", name: "Ethereum" },
   { symbol: "SOLUSDT", name: "Solana" },
-  { symbol: "ADAUSDT", name: "Cardano" },
+  { symbol: "XRPUSDT", name: "Ripple" },
 ]
 
 const INTERVAL_MAP: Record<string, string> = {

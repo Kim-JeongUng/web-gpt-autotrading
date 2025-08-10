@@ -9,6 +9,10 @@ const cookieParser = require('cookie-parser');
 const { RestClientV5 } = require('bybit-api');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
+const xlsx = require('xlsx');
+const path = require('path');
+
+const USER_INFO_PATH = path.join(__dirname, '..', 'userInfo.xlsx');
 
 const app = express();
 
@@ -345,6 +349,68 @@ app.post('/api/trading-stop', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Error updating position:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+function readStrategies() {
+  const workbook = xlsx.readFile(USER_INFO_PATH);
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const data = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+  return { workbook, data };
+}
+
+app.get('/api/strategies', (req, res) => {
+  try {
+    const { user } = req.query;
+    const { data } = readStrategies();
+    const list = user ? data.filter((r) => r.googleOauth === user) : data;
+    res.json(list);
+  } catch (err) {
+    console.error('Error reading strategies:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/strategies', (req, res) => {
+  try {
+    const {
+      googleOauth,
+      coin,
+      limitAmount,
+      maxReverage,
+      reliability,
+      maxAiTradingCount,
+    } = req.body;
+    if (!googleOauth) {
+      return res.status(400).json({ error: 'googleOauth required' });
+    }
+    const { workbook, data } = readStrategies();
+
+    if (!data.length || !('coin' in data[0])) {
+      data.forEach((r) => {
+        if (!('coin' in r)) r.coin = '';
+      });
+    }
+
+    const newId = data.reduce((max, r) => Math.max(max, r.id || 0), 0) + 1;
+    data.push({
+      id: newId,
+      googleOauth,
+      coin,
+      'Limit the amount used($)': limitAmount,
+      'maxReverage(1x~100x)': maxReverage,
+      'Reliability(%)': reliability,
+      'max AI trading count': maxAiTradingCount,
+      'now AI trading count(read Only)': 0,
+    });
+
+    const newSheet = xlsx.utils.json_to_sheet(data);
+    workbook.Sheets[workbook.SheetNames[0]] = newSheet;
+    xlsx.writeFile(workbook, USER_INFO_PATH);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error saving strategy:', err);
     res.status(500).json({ error: err.message });
   }
 });

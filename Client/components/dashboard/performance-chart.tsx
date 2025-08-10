@@ -22,8 +22,8 @@ export function PerformanceChart() {
     allocation: [
       { asset: "BTC", percentage: 45, value: 56443.5 },
       { asset: "ETH", percentage: 30, value: 37629.15 },
-      { asset: "ADA", percentage: 15, value: 18814.58 },
-      { asset: "SOL", percentage: 10, value: 12543.27 },
+      { asset: "SOL", percentage: 15, value: 18814.58 },
+      { asset: "XRP", percentage: 10, value: 12543.27 },
     ],
   }
 

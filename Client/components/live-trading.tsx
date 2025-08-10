@@ -25,7 +25,7 @@ const initialCoins: CoinData[] = [
   { symbol: "BTCUSDT", name: "Bitcoin", price: 43250.5, change24h: 2.34, volume: 1234567890 },
   { symbol: "ETHUSDT", name: "Ethereum", price: 2580.75, change24h: -1.23, volume: 987654321 },
   { symbol: "SOLUSDT", name: "Solana", price: 98.45, change24h: 5.67, volume: 456789123 },
-  { symbol: "ADAUSDT", name: "Cardano", price: 0.485, change24h: -0.89, volume: 234567890 },
+  { symbol: "XRPUSDT", name: "Ripple", price: 0.527, change24h: -0.89, volume: 234567890 },
 ]
 
 export function LiveTrading() {

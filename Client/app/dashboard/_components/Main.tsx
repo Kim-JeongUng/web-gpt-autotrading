@@ -132,7 +132,7 @@ export default function Main({
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>기타</span>
+                    <span>XRP</span>
                     <span>10%</span>
                   </div>
                   <Progress value={10} className="h-2" />

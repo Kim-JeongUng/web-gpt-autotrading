@@ -15,7 +15,7 @@ export function PortfolioOverview() {
     positions: [
       { symbol: "BTCUSDT", size: 0.5, pnl: 1234.5, pnlPercent: 5.2, side: "LONG" },
       { symbol: "ETHUSDT", size: 2.1, pnl: -234.2, pnlPercent: -1.8, side: "SHORT" },
-      { symbol: "ADAUSDT", size: 1000, pnl: 456.8, pnlPercent: 3.1, side: "LONG" },
+      { symbol: "XRPUSDT", size: 500, pnl: 456.8, pnlPercent: 3.1, side: "LONG" },
     ],
   }
 

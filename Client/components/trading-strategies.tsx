@@ -1,42 +1,83 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { TrendingUp, TrendingDown, Pause, Play, Settings } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-const strategies = [
-  {
-    id: 1,
-    name: "BTC 트렌드 추종",
-    status: "active",
-    accuracy: 87.5,
-    profit: 2340.5,
-    trades: 156,
-    description: "BTC의 장기 트렌드를 분석하여 매수/매도 신호 생성",
-  },
-  {
-    id: 2,
-    name: "ETH 변동성 거래",
-    status: "active",
-    accuracy: 72.3,
-    profit: 1890.2,
-    trades: 203,
-    description: "ETH의 단기 변동성을 활용한 스캘핑 전략",
-  },
-  {
-    id: 3,
-    name: "SOL 모멘텀 전략",
-    status: "paused",
-    accuracy: 65.8,
-    profit: -234.1,
-    trades: 89,
-    description: "SOL의 모멘텀 지표를 기반으로 한 중기 투자 전략",
-  },
+const SERVER_URL = process.env.NEXT_PUBLIC_TRADING_SERVER || "http://localhost:4000"
+
+interface Strategy {
+  id: number
+  coin: string
+  "Limit the amount used($)": number
+  "maxReverage(1x~100x)": number
+  "Reliability(%)": number
+  "max AI trading count": number
+}
+
+const COINS = [
+  { symbol: "BTCUSDT", name: "Bitcoin" },
+  { symbol: "ETHUSDT", name: "Ethereum" },
+  { symbol: "SOLUSDT", name: "Solana" },
+  { symbol: "XRPUSDT", name: "Ripple" },
 ]
 
 export function TradingStrategies() {
+  const [strategies, setStrategies] = useState<Strategy[]>([])
+  const [isAdding, setIsAdding] = useState(false)
+  const [coin, setCoin] = useState("BTCUSDT")
+  const [limit, setLimit] = useState("")
+  const [leverage, setLeverage] = useState("")
+  const [reliability, setReliability] = useState("")
+  const [maxAi, setMaxAi] = useState("")
+
+  const user = "user111"
+
+  const loadStrategies = async () => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/strategies?user=${user}`)
+      if (res.ok) {
+        const data = await res.json()
+        setStrategies(data)
+      }
+    } catch (err) {
+      console.error("Failed to load strategies", err)
+    }
+  }
+
+  useEffect(() => {
+    loadStrategies()
+  }, [])
+
+  const handleSubmit = async () => {
+    try {
+      await fetch(`${SERVER_URL}/api/strategies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          googleOauth: user,
+          coin,
+          limitAmount: Number(limit),
+          maxReverage: Number(leverage),
+          reliability: Number(reliability),
+          maxAiTradingCount: Number(maxAi),
+        }),
+      })
+      setCoin("BTCUSDT")
+      setLimit("")
+      setLeverage("")
+      setReliability("")
+      setMaxAi("")
+      setIsAdding(false)
+      loadStrategies()
+    } catch (err) {
+      console.error("Failed to save strategy", err)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -44,63 +85,76 @@ export function TradingStrategies() {
           <h2 className="text-2xl font-bold">거래 전략</h2>
           <p className="text-muted-foreground">AI가 추천하는 거래 전략을 관리하세요</p>
         </div>
-        <Button>새 전략 추가</Button>
+        <Button onClick={() => setIsAdding((v) => !v)}>새 전략 추가</Button>
       </div>
 
-      <div className="grid gap-6">
-        {strategies.map((strategy) => (
-          <Card key={strategy.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    {strategy.name}
-                    <Badge variant={strategy.status === "active" ? "default" : "secondary"}>
-                      {strategy.status === "active" ? "실행중" : "일시정지"}
-                    </Badge>
-                  </CardTitle>
-                  <CardDescription>{strategy.description}</CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    {strategy.status === "active" ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                  </Button>
-                </div>
+      {isAdding && (
+        <Card>
+          <CardHeader>
+            <CardTitle>전략 추가</CardTitle>
+            <CardDescription>새로운 거래 전략을 설정하세요</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>코인</Label>
+              <Select value={coin} onValueChange={setCoin}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COINS.map((c) => (
+                    <SelectItem key={c.symbol} value={c.symbol}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Limit the amount used ($)</Label>
+                <Input value={limit} onChange={(e) => setLimit(e.target.value)} />
               </div>
+              <div className="space-y-2">
+                <Label>maxReverage (1x~100x)</Label>
+                <Input value={leverage} onChange={(e) => setLeverage(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Reliability (%)</Label>
+                <Input value={reliability} onChange={(e) => setReliability(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>max AI trading count</Label>
+                <Input value={maxAi} onChange={(e) => setMaxAi(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setIsAdding(false)}>
+                취소
+              </Button>
+              <Button onClick={handleSubmit}>저장</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-6">
+        {strategies.map((s) => (
+          <Card key={s.id}>
+            <CardHeader>
+              <CardTitle>{s.coin}</CardTitle>
+              <CardDescription>
+                Limit ${s["Limit the amount used($)"]} / Leverage {s["maxReverage(1x~100x)"]}x
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">정확도</p>
-                  <div className="flex items-center gap-2">
-                    <Progress value={strategy.accuracy} className="flex-1" />
-                    <span className="text-sm font-medium">{strategy.accuracy}%</span>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">수익</p>
-                  <div className="flex items-center gap-1">
-                    {strategy.profit > 0 ? (
-                      <TrendingUp className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4 text-red-600" />
-                    )}
-                    <span className={`font-medium ${strategy.profit > 0 ? "text-green-600" : "text-red-600"}`}>
-                      ${Math.abs(strategy.profit).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">총 거래</p>
-                  <p className="font-medium">{strategy.trades}회</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">상태</p>
-                  <p className="font-medium">{strategy.status === "active" ? "활성" : "비활성"}</p>
-                </div>
+            <CardContent className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Reliability</p>
+                <p className="font-medium">{s["Reliability(%)"]}%</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Max AI trading count</p>
+                <p className="font-medium">{s["max AI trading count"]}</p>
               </div>
             </CardContent>
           </Card>
@@ -109,3 +163,4 @@ export function TradingStrategies() {
     </div>
   )
 }
+
