@@ -21,6 +21,12 @@ function toNum(s?: string) {
   return s ? Number(s) : 0;
 }
 
+function removeBranding(ref: HTMLDivElement | null) {
+  if (!ref) return;
+  const link = ref.querySelector<HTMLAnchorElement>("a[href*='tradingview.com']");
+  if (link) link.remove();
+}
+
 export function BybitMarketChart({ symbol, interval = "1" }: Props) {
   const mainRef = useRef<HTMLDivElement>(null);
   const volRef = useRef<HTMLDivElement>(null);
@@ -62,36 +68,42 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151" },
     });
+    removeBranding(mainRef.current);
     volChart.current = createChart(volRef.current!, {
       layout: { background: { type: ColorType.Solid, color: "#111827" }, textColor: "#e5e7eb" },
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151" },
       grid: { vertLines: { color: "#374151" }, horzLines: { color: "#374151" } },
     });
+    removeBranding(volRef.current);
     fundChart.current = createChart(fundRef.current!, {
       layout: { background: { type: ColorType.Solid, color: "#111827" }, textColor: "#e5e7eb" },
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151" },
       grid: { vertLines: { color: "#374151" }, horzLines: { color: "#374151" } },
     });
+    removeBranding(fundRef.current);
     oiChart.current = createChart(oiRef.current!, {
       layout: { background: { type: ColorType.Solid, color: "#111827" }, textColor: "#e5e7eb" },
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151" },
       grid: { vertLines: { color: "#374151" }, horzLines: { color: "#374151" } },
     });
+    removeBranding(oiRef.current);
     lsrChart.current = createChart(lsrRef.current!, {
       layout: { background: { type: ColorType.Solid, color: "#111827" }, textColor: "#e5e7eb" },
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151" },
       grid: { vertLines: { color: "#374151" }, horzLines: { color: "#374151" } },
     });
+    removeBranding(lsrRef.current);
     imbChart.current = createChart(imbRef.current!, {
       layout: { background: { type: ColorType.Solid, color: "#111827" }, textColor: "#e5e7eb" },
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151" },
       grid: { vertLines: { color: "#374151" }, horzLines: { color: "#374151" } },
     });
+    removeBranding(imbRef.current);
   }, []);
 
   useEffect(() => {

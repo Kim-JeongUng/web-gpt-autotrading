@@ -54,3 +54,7 @@
     @apply bg-background text-foreground;
   }
 }
+
+a[href*="tradingview.com"] {
+  display: none !important;
+}
