@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useTradingStore } from "@/lib/trading-store"
 import { bybitService } from "@/lib/bybit-client"
-import { WebsocketCandlestickChart } from "@/components/websocket-candlestick-chart"
+import BybitMarketChart from "@/components/bybit-market-chart"
 import { RealTimeOrderBook } from "@/components/real-time-order-book"
 import { EnhancedPositionManager } from "@/components/enhanced-position-manager"
 import { TrendingUp, TrendingDown, AlertTriangle, Wifi, WifiOff, BarChart3 } from "lucide-react"
@@ -312,10 +312,7 @@ export function EnhancedLiveTrading() {
               </div>
             </CardHeader>
             <CardContent>
-              <WebsocketCandlestickChart
-                symbol={selectedSymbol}
-                timeframe={timeframe}
-              />
+              <BybitMarketChart symbol={selectedSymbol} />
               {geminiAnswer && (
                 <Alert className="mt-4">
                   <AlertDescription className="whitespace-pre-wrap">

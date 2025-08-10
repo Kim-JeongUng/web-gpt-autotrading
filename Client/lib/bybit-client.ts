@@ -129,6 +129,161 @@ export class BybitService {
     return data.result?.list || []
   }
 
+  async getMarkPriceKlines(params: {
+    symbol: string
+    interval?: string
+    limit?: number
+    category?: string
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      interval: params.interval?.toString() || '1',
+      limit: (params.limit || 200).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/mark-price-kline?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result?.list || []
+  }
+
+  async getIndexPriceKlines(params: {
+    symbol: string
+    interval?: string
+    limit?: number
+    category?: string
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      interval: params.interval?.toString() || '1',
+      limit: (params.limit || 200).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/index-price-kline?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result?.list || []
+  }
+
+  async getFundingRateHistory(params: {
+    symbol: string
+    category?: string
+    limit?: number
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      limit: (params.limit || 200).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/funding-rate-history?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result?.list || []
+  }
+
+  async getOpenInterest(params: {
+    symbol: string
+    category?: string
+    intervalTime?: string
+    limit?: number
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      intervalTime: params.intervalTime || '5min',
+      limit: (params.limit || 200).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/open-interest?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result?.list || []
+  }
+
+  async getLongShortRatio(params: {
+    symbol: string
+    category?: string
+    period?: string
+    limit?: number
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      period: params.period || '5min',
+      limit: (params.limit || 200).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/long-short-ratio?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result?.list || []
+  }
+
+  async getRecentTrades(params: {
+    symbol: string
+    category?: string
+    limit?: number
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      limit: (params.limit || 1000).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/recent-trade?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result?.list || []
+  }
+
+  async getOrderbookSnapshot(params: {
+    symbol: string
+    category?: string
+    limit?: number
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      limit: (params.limit || 200).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/orderbook?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result || {}
+  }
+
   async getAccountBalance() {
 
     try {
