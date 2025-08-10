@@ -1,13 +1,110 @@
 require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
+const session = require('express-session');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const cookieParser = require('cookie-parser');
 const { RestClientV5 } = require('bybit-api');
 const axios = require('axios');
+const jwt = require('jsonwebtoken');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
 
+// CORS 설정
+app.use(
+  cors({
+    origin: 'http://localhost:3000',
+    credentials: true, // 쿠키 및 세션을 프론트에서 허용
+  }),
+);
+
+app.use(express.json());
+app.use(cookieParser());
+
+// 세션 설정 (passport 세션 지원용)
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'secret_key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: false, // HTTPS 환경에서는 true로 변경
+      maxAge: 1000 * 60 * 60, // 1시간
+    },
+  }),
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Passport: user serialize / deserialize
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((obj, done) => done(null, obj));
+
+// Passport: Google OAuth 전략 설정
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: process.env.GOOGLE_CALLBACK_URL,
+    },
+    (accessToken, refreshToken, profile, done) => {
+      // 사용자 DB 저장 로직 여기에 구현 가능
+      const user = {
+        id: profile.id,
+        displayName: profile.displayName,
+        email: profile.emails[0].value,
+        accessToken,
+        refreshToken,
+      };
+      return done(null, user);
+    },
+  ),
+);
+
+// --- OAuth 라우트 ---
+// 구글 로그인 시작
+app.get(
+  '/auth/google',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    accessType: 'offline',
+    prompt: 'consent', // 강제 동의 화면 표시 (refreshToken 재발급 위해)
+  }),
+);
+
+// 구글 로그인 콜백
+app.get(
+  '/auth/google/callback',
+  passport.authenticate('google', {
+    failureRedirect: 'http://localhost:3000/login',
+  }),
+  (req, res) => {
+    res.cookie('accessToken', req.user.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // 운영환경에서 true
+      maxAge: 1000 * 60 * 60, // 1시간
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    res.cookie('refreshToken', req.user.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 1000 * 60 * 60 * 24 * 30, // 30일
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    res.redirect('http://localhost:3000/dashboard');
+  },
+);
+
+// Bybit API 초기화 및 재설정 함수
 let restClient = new RestClientV5({
   key: process.env.BYBIT_API_KEY,
   secret: process.env.BYBIT_API_SECRET,
@@ -22,12 +119,7 @@ function initRestClient({ apiKey, apiSecret, testnet }) {
   });
 }
 
-// Initialize with environment variables on startup
-initRestClient({
-  apiKey: process.env.BYBIT_API_KEY,
-  apiSecret: process.env.BYBIT_API_SECRET,
-  testnet: process.env.BYBIT_TESTNET === 'true',
-});
+// Bybit API 관련 엔드포인트들
 
 app.get('/api/klines', async (req, res) => {
   try {
@@ -39,6 +131,7 @@ app.get('/api/klines', async (req, res) => {
       start,
       end,
     } = req.query;
+
     const result = await restClient.getKline({
       category,
       symbol,
@@ -47,6 +140,7 @@ app.get('/api/klines', async (req, res) => {
       ...(start ? { start: parseInt(start, 10) } : {}),
       ...(end ? { end: parseInt(end, 10) } : {}),
     });
+
     res.json(result);
   } catch (err) {
     console.error('Error fetching klines:', err);
@@ -56,7 +150,9 @@ app.get('/api/klines', async (req, res) => {
 
 app.get('/api/balance', async (req, res) => {
   try {
-    const result = await restClient.getWalletBalance({ accountType: 'UNIFIED' });
+    const result = await restClient.getWalletBalance({
+      accountType: 'UNIFIED',
+    });
     res.json(result);
   } catch (err) {
     console.error('Error fetching balance:', err);
@@ -114,23 +210,6 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-// Validate API credentials by attempting a private request
-// app.post('/api/validate', async (req, res) => {
-//   const { apiKey, apiSecret, testnet = false } = req.body;
-//   console.log("Sent to server:", { apiKey, apiSecret, testnet });
-
-//   const client = new RestClientV5({ key: apiKey, secret: apiSecret, testnet });
-//   try {
-//     await client.getWalletBalance({ accountType: 'UNIFIED' });
-//     console.log("Calling:", `${SERVER_URL}/api/validate`)
-
-//     console.log('API credentials validated successfully');
-//     res.json({ valid: true });
-//   } catch (err) {
-//     console.log('API credential validation failed:', err.message);
-//     res.status(400).json({ valid: false, error: err.message });
-//   }
-// });
 app.post('/api/validate', async (req, res) => {
   const { apiKey, apiSecret, testnet } = req.body;
   const isTestnet = testnet === true || testnet === 'true';
@@ -270,6 +349,32 @@ app.post('/api/trading-stop', async (req, res) => {
   }
 });
 
+// 필요시 GPT, Gemini API 관련 라우트도 여기에 추가하세요...
+
+// 서버 시작
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+// Validate API credentials by attempting a private request
+// app.post('/api/validate', async (req, res) => {
+//   const { apiKey, apiSecret, testnet = false } = req.body;
+//   console.log("Sent to server:", { apiKey, apiSecret, testnet });
+
+//   const client = new RestClientV5({ key: apiKey, secret: apiSecret, testnet });
+//   try {
+//     await client.getWalletBalance({ accountType: 'UNIFIED' });
+//     console.log("Calling:", `${SERVER_URL}/api/validate`)
+
+//     console.log('API credentials validated successfully');
+//     res.json({ valid: true });
+//   } catch (err) {
+//     console.log('API credential validation failed:', err.message);
+//     res.status(400).json({ valid: false, error: err.message });
+//   }
+// });
+
 // app.post('/api/gpt', async (req, res) => {
 //   try {
 //     const coinInfo = req.body;
@@ -340,9 +445,11 @@ app.post('/api/gemini', async (req, res) => {
     console.log('Gemini Response:', text);
     res.json({ text });
   } catch (err) {
-    console.error('Error fetching Gemini analysis:', err.response?.data || err.message);
+    console.error(
+      'Error fetching Gemini analysis:',
+      err.response?.data || err.message,
+    );
     res.status(500).json({ error: 'Failed to fetch Gemini analysis' });
   }
 });
-const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
