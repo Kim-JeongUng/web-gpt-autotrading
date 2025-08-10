@@ -26,12 +26,26 @@ export function BybitMarketChart({ symbol }: Props) {
   const fundRef = useRef<HTMLDivElement>(null);
   const oiRef = useRef<HTMLDivElement>(null);
   const lsrRef = useRef<HTMLDivElement>(null);
+  const imbRef = useRef<HTMLDivElement>(null);
 
   const mainChart = useRef<ReturnType<typeof createChart>>();
   const volChart = useRef<ReturnType<typeof createChart>>();
   const fundChart = useRef<ReturnType<typeof createChart>>();
   const oiChart = useRef<ReturnType<typeof createChart>>();
   const lsrChart = useRef<ReturnType<typeof createChart>>();
+  const imbChart = useRef<ReturnType<typeof createChart>>();
+
+  const candleSeries = useRef<ISeriesApi<"Candlestick">>();
+  const markSeries = useRef<ISeriesApi<"Line">>();
+  const indexSeries = useRef<ISeriesApi<"Line">>();
+  const volSeries = useRef<ISeriesApi<"Histogram">>();
+  const fundSeries = useRef<ISeriesApi<"Line">>();
+  const oiSeries = useRef<ISeriesApi<"Line">>();
+  const oiDeltaSeries = useRef<ISeriesApi<"Histogram">>();
+  const lsrSeries = useRef<ISeriesApi<"Line">>();
+  const imbalanceSeries = useRef<ISeriesApi<"Histogram">>();
+
+  const tradeBuckets = useRef<Record<number, { buy: number; sell: number }>>({});
 
   useEffect(() => {
     if (!mainRef.current || mainChart.current) return;
@@ -66,6 +80,12 @@ export function BybitMarketChart({ symbol }: Props) {
       grid: { vertLines: { color: "#374151" }, horzLines: { color: "#374151" } },
     });
     lsrChart.current = createChart(lsrRef.current!, {
+      layout: { background: { type: ColorType.Solid, color: "#111827" }, textColor: "#e5e7eb" },
+      rightPriceScale: { borderColor: "#374151" },
+      timeScale: { borderColor: "#374151" },
+      grid: { vertLines: { color: "#374151" }, horzLines: { color: "#374151" } },
+    });
+    imbChart.current = createChart(imbRef.current!, {
       layout: { background: { type: ColorType.Solid, color: "#111827" }, textColor: "#e5e7eb" },
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151" },
@@ -128,15 +148,16 @@ export function BybitMarketChart({ symbol }: Props) {
         value: Number(x.longAccountRatio),
       }));
 
-      const tradeBuckets: Record<number, { buy: number; sell: number }> = {};
+      tradeBuckets.current = {};
       (trades as any[]).forEach((t) => {
         const ts = Math.floor(Number(t.execTime || t.time) / 1000);
         const m = Math.floor(ts / 60) * 60;
-        if (!tradeBuckets[m]) tradeBuckets[m] = { buy: 0, sell: 0 };
-        if ((t.side || t.execType) === "Buy") tradeBuckets[m].buy += toNum(t.execQty || t.qty);
-        else tradeBuckets[m].sell += toNum(t.execQty || t.qty);
+        if (!tradeBuckets.current[m]) tradeBuckets.current[m] = { buy: 0, sell: 0 };
+        if ((t.side || t.execType) === "Buy")
+          tradeBuckets.current[m].buy += toNum(t.execQty || t.qty);
+        else tradeBuckets.current[m].sell += toNum(t.execQty || t.qty);
       });
-      const imbalance: HistogramData[] = Object.entries(tradeBuckets).map(
+      const imbalance: HistogramData[] = Object.entries(tradeBuckets.current).map(
         ([time, v]) => {
           const total = v.buy + v.sell;
           const val = total > 0 ? (v.buy - v.sell) / total : 0;
@@ -148,31 +169,101 @@ export function BybitMarketChart({ symbol }: Props) {
         },
       );
 
-      const candleSeries = mainChart.current.addCandlestickSeries({
-        upColor: "#22c55e",
-        downColor: "#ef4444",
-        borderVisible: false,
-        wickUpColor: "#22c55e",
-        wickDownColor: "#ef4444",
-      });
-      candleSeries.setData(candles);
-      const markSeries = mainChart.current.addLineSeries({ color: "#fbbf24" });
-      markSeries.setData(markLine);
-      const indexSeries = mainChart.current.addLineSeries({ color: "#60a5fa" });
-      indexSeries.setData(indexLine);
+      candleSeries.current =
+        candleSeries.current ||
+        mainChart.current.addCandlestickSeries({
+          upColor: "#22c55e",
+          downColor: "#ef4444",
+          borderVisible: false,
+          wickUpColor: "#22c55e",
+          wickDownColor: "#ef4444",
+        });
+      candleSeries.current.setData(candles);
+      markSeries.current =
+        markSeries.current || mainChart.current.addLineSeries({ color: "#fbbf24" });
+      markSeries.current.setData(markLine);
+      indexSeries.current =
+        indexSeries.current || mainChart.current.addLineSeries({ color: "#60a5fa" });
+      indexSeries.current.setData(indexLine);
 
-      const volSeries = volChart.current!.addHistogramSeries({ color: "#9ca3af" });
-      volSeries.setData(volumes);
-      const fundSeries = fundChart.current!.addLineSeries({ color: "#f472b6" });
-      fundSeries.setData(fundingLine);
-      const oiSeries = oiChart.current!.addLineSeries({ color: "#a855f7" });
-      oiSeries.setData(oiLine);
-      const oiDeltaSeries = oiChart.current!.addHistogramSeries({ color: "#fde047" });
-      oiDeltaSeries.setData(oiDelta);
-      const lsrSeries = lsrChart.current!.addLineSeries({ color: "#10b981" });
-      lsrSeries.setData(lsrLine);
+      volSeries.current =
+        volSeries.current || volChart.current!.addHistogramSeries({ color: "#9ca3af" });
+      volSeries.current.setData(volumes);
+      fundSeries.current =
+        fundSeries.current || fundChart.current!.addLineSeries({ color: "#f472b6" });
+      fundSeries.current.setData(fundingLine);
+      oiSeries.current =
+        oiSeries.current || oiChart.current!.addLineSeries({ color: "#a855f7" });
+      oiSeries.current.setData(oiLine);
+      oiDeltaSeries.current =
+        oiDeltaSeries.current ||
+        oiChart.current!.addHistogramSeries({ color: "#fde047" });
+      oiDeltaSeries.current.setData(oiDelta);
+      lsrSeries.current =
+        lsrSeries.current || lsrChart.current!.addLineSeries({ color: "#10b981" });
+      lsrSeries.current.setData(lsrLine);
+      imbalanceSeries.current =
+        imbalanceSeries.current ||
+        imbChart.current!.addHistogramSeries({ color: "#9ca3af" });
+      imbalanceSeries.current.setData(imbalance);
     }
     load();
+  }, [symbol]);
+
+  useEffect(() => {
+    if (!candleSeries.current) return;
+    const unsubs: (() => void)[] = [];
+    unsubs.push(
+      bybitService.subscribeKline(symbol, '1', (d) => {
+        const time = Math.floor(Number(d.start || d.startTime) / 1000) as Time;
+        const bar: CandlestickData = {
+          time,
+          open: toNum(d.open),
+          high: toNum(d.high),
+          low: toNum(d.low),
+          close: toNum(d.close),
+        };
+        candleSeries.current?.update(bar);
+        volSeries.current?.update({
+          time,
+          value: toNum(d.volume || d.turnover),
+          color: bar.close >= bar.open ? "#22c55e" : "#ef4444",
+        });
+      }) || (() => {}),
+    );
+    unsubs.push(
+      bybitService.subscribeMarkPrice(symbol, '1', (d) => {
+        const time = Math.floor(Number(d.start || d.time) / 1000) as Time;
+        markSeries.current?.update({ time, value: toNum(d.close) });
+      }) || (() => {}),
+    );
+    unsubs.push(
+      bybitService.subscribeIndexPrice(symbol, '1', (d) => {
+        const time = Math.floor(Number(d.start || d.time) / 1000) as Time;
+        indexSeries.current?.update({ time, value: toNum(d.close) });
+      }) || (() => {}),
+    );
+    unsubs.push(
+      bybitService.subscribeTrades(symbol, (t) => {
+        const ts = Math.floor(Number(t.execTime || t.T) / 1000);
+        const m = Math.floor(ts / 60) * 60;
+        if (!tradeBuckets.current[m]) tradeBuckets.current[m] = { buy: 0, sell: 0 };
+        if ((t.side || t.S) === 'Buy')
+          tradeBuckets.current[m].buy += toNum(t.execQty || t.v);
+        else tradeBuckets.current[m].sell += toNum(t.execQty || t.v);
+        const bucket = tradeBuckets.current[m];
+        const total = bucket.buy + bucket.sell;
+        const val = total > 0 ? (bucket.buy - bucket.sell) / total : 0;
+        imbalanceSeries.current?.update({
+          time: m as Time,
+          value: val,
+          color: val >= 0 ? "#22c55e" : "#ef4444",
+        });
+      }) || (() => {}),
+    );
+    return () => {
+      unsubs.forEach((u) => u());
+    };
   }, [symbol]);
 
   return (
@@ -182,6 +273,7 @@ export function BybitMarketChart({ symbol }: Props) {
       <div ref={fundRef} className="h-20 w-full" />
       <div ref={oiRef} className="h-20 w-full" />
       <div ref={lsrRef} className="h-20 w-full" />
+      <div ref={imbRef} className="h-20 w-full" />
     </div>
   );
 }

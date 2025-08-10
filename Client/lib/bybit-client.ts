@@ -269,6 +269,92 @@ export class BybitService {
     return data.result?.list || []
   }
 
+  /** Subscribe to real-time kline updates */
+  subscribeKline(
+    symbol: string,
+    interval = '1',
+    cb: (data: any) => void,
+    category = 'linear',
+  ) {
+    if (!this.wsClient) this.initializeClients()
+    const topic = `kline.${interval}.${symbol}`
+    const handler = (msg: any) => {
+      if (msg.topic === topic) cb(msg.data[0])
+    }
+    this.wsClient?.on('update', handler)
+    this.wsClient?.subscribeV5?.(topic, category)
+    return () => {
+      this.wsClient?.unsubscribeV5?.(topic, category)
+      // @ts-ignore - removeListener exists on Node event emitter
+      this.wsClient?.off?.('update', handler) ||
+        this.wsClient?.removeListener?.('update', handler)
+    }
+  }
+
+  /** Subscribe to mark price kline updates */
+  subscribeMarkPrice(
+    symbol: string,
+    interval = '1',
+    cb: (data: any) => void,
+    category = 'linear',
+  ) {
+    if (!this.wsClient) this.initializeClients()
+    const topic = `markPriceKline.${interval}.${symbol}`
+    const handler = (msg: any) => {
+      if (msg.topic === topic) cb(msg.data[0])
+    }
+    this.wsClient?.on('update', handler)
+    this.wsClient?.subscribeV5?.(topic, category)
+    return () => {
+      this.wsClient?.unsubscribeV5?.(topic, category)
+      this.wsClient?.off?.('update', handler) ||
+        this.wsClient?.removeListener?.('update', handler)
+    }
+  }
+
+  /** Subscribe to index price kline updates */
+  subscribeIndexPrice(
+    symbol: string,
+    interval = '1',
+    cb: (data: any) => void,
+    category = 'linear',
+  ) {
+    if (!this.wsClient) this.initializeClients()
+    const topic = `indexPriceKline.${interval}.${symbol}`
+    const handler = (msg: any) => {
+      if (msg.topic === topic) cb(msg.data[0])
+    }
+    this.wsClient?.on('update', handler)
+    this.wsClient?.subscribeV5?.(topic, category)
+    return () => {
+      this.wsClient?.unsubscribeV5?.(topic, category)
+      this.wsClient?.off?.('update', handler) ||
+        this.wsClient?.removeListener?.('update', handler)
+    }
+  }
+
+  /** Subscribe to real-time public trades */
+  subscribeTrades(
+    symbol: string,
+    cb: (trade: any) => void,
+    category = 'linear',
+  ) {
+    if (!this.wsClient) this.initializeClients()
+    const topic = `publicTrade.${symbol}`
+    const handler = (msg: any) => {
+      if (msg.topic === topic) {
+        ;(msg.data || []).forEach((t: any) => cb(t))
+      }
+    }
+    this.wsClient?.on('update', handler)
+    this.wsClient?.subscribeV5?.(topic, category)
+    return () => {
+      this.wsClient?.unsubscribeV5?.(topic, category)
+      this.wsClient?.off?.('update', handler) ||
+        this.wsClient?.removeListener?.('update', handler)
+    }
+  }
+
   async getAccountBalance() {
 
     try {
