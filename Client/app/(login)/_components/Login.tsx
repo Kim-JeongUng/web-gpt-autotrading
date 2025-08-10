@@ -3,6 +3,7 @@
 import type React from "react";
 
 import { useState } from "react";
+import { useGoogleLogin } from "@react-oauth/google";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,9 +24,10 @@ export function LoginForm() {
 
   const router = useRouter();
 
-  const handleOAuthLogin = async (provider: string) => {
-    const token = prompt("OAuth token") || "";
-    if (token) {
+  const googleLogin = useGoogleLogin({
+    flow: "implicit",
+    onSuccess: async (tokenResponse) => {
+      const token = tokenResponse.access_token;
       try {
         await fetch("http://localhost:4000/api/user", {
           method: "POST",
@@ -33,12 +35,15 @@ export function LoginForm() {
           body: JSON.stringify({ googleOauth: token }),
         });
         localStorage.setItem("oauthToken", token);
+        router.push(`/dashboard`);
       } catch (err) {
         console.error("Failed to save OAuth token", err);
       }
-      router.push(`/dashboard`);
-    }
-  };
+    },
+    onError: (err) => {
+      console.error("Google login failed", err);
+    },
+  });
 
   const handleEmailLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +68,7 @@ export function LoginForm() {
             <Button
               variant="outline"
               className="w-full bg-transparent"
-              onClick={() => handleOAuthLogin("google")}
+              onClick={() => googleLogin()}
             >
               <Chrome className="mr-2 h-4 w-4" />
               Google로 계속하기
@@ -71,7 +76,7 @@ export function LoginForm() {
             <Button
               variant="outline"
               className="w-full bg-transparent"
-              onClick={() => handleOAuthLogin("github")}
+              onClick={() => console.log("GitHub login not implemented")}
             >
               <Github className="mr-2 h-4 w-4" />
               GitHub로 계속하기
