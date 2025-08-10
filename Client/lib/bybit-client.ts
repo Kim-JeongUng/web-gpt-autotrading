@@ -526,12 +526,12 @@ export class BybitService {
   //   }
   // }
 
-  async getGeminiAnalysis(data: any) {
+  async getGeminiAnalysis(symbol: string) {
     try {
       const res = await fetch(`${SERVER_URL}/api/gemini`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ symbol }),
       })
       if (!res.ok) {
         const message = await res.text()

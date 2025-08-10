@@ -14,13 +14,14 @@ import { bybitService } from "@/lib/bybit-client";
 
 interface Props {
   symbol: string;
+  interval?: string;
 }
 
 function toNum(s?: string) {
   return s ? Number(s) : 0;
 }
 
-export function BybitMarketChart({ symbol }: Props) {
+export function BybitMarketChart({ symbol, interval = "1" }: Props) {
   const mainRef = useRef<HTMLDivElement>(null);
   const volRef = useRef<HTMLDivElement>(null);
   const fundRef = useRef<HTMLDivElement>(null);
@@ -97,9 +98,9 @@ export function BybitMarketChart({ symbol }: Props) {
     async function load() {
       if (!mainChart.current) return;
       const [kl, markKl, idxKl, fund, oi, lsr, trades] = await Promise.all([
-        bybitService.getKlines({ symbol, interval: "1", limit: 1000 }),
-        bybitService.getMarkPriceKlines({ symbol, interval: "1", limit: 1000 }),
-        bybitService.getIndexPriceKlines({ symbol, interval: "1", limit: 1000 }),
+        bybitService.getKlines({ symbol, interval, limit: 1000 }),
+        bybitService.getMarkPriceKlines({ symbol, interval, limit: 1000 }),
+        bybitService.getIndexPriceKlines({ symbol, interval, limit: 1000 }),
         bybitService.getFundingHistory({ symbol, limit: 200 }),
         bybitService.getOpenInterest({ symbol, intervalTime: "5min", limit: 200 }),
         bybitService.getLongShortRatio({ symbol, period: "5min", limit: 200 }),
@@ -208,13 +209,13 @@ export function BybitMarketChart({ symbol }: Props) {
       imbalanceSeries.current.setData(imbalance);
     }
     load();
-  }, [symbol]);
+  }, [symbol, interval]);
 
   useEffect(() => {
     if (!candleSeries.current) return;
     const unsubs: (() => void)[] = [];
     unsubs.push(
-      bybitService.subscribeKline(symbol, '1', (d) => {
+      bybitService.subscribeKline(symbol, interval, (d) => {
         const time = Math.floor(Number(d.start || d.startTime) / 1000) as Time;
         const bar: CandlestickData = {
           time,
@@ -232,13 +233,13 @@ export function BybitMarketChart({ symbol }: Props) {
       }) || (() => {}),
     );
     unsubs.push(
-      bybitService.subscribeMarkPrice(symbol, '1', (d) => {
+      bybitService.subscribeMarkPrice(symbol, interval, (d) => {
         const time = Math.floor(Number(d.start || d.time) / 1000) as Time;
         markSeries.current?.update({ time, value: toNum(d.close) });
       }) || (() => {}),
     );
     unsubs.push(
-      bybitService.subscribeIndexPrice(symbol, '1', (d) => {
+      bybitService.subscribeIndexPrice(symbol, interval, (d) => {
         const time = Math.floor(Number(d.start || d.time) / 1000) as Time;
         indexSeries.current?.update({ time, value: toNum(d.close) });
       }) || (() => {}),
@@ -264,7 +265,7 @@ export function BybitMarketChart({ symbol }: Props) {
     return () => {
       unsubs.forEach((u) => u());
     };
-  }, [symbol]);
+  }, [symbol, interval]);
 
   return (
     <div className="space-y-2">

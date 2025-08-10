@@ -528,24 +528,87 @@ app.listen(PORT, () => {
 //   }
 // });
 
+
 app.post('/api/gemini', async (req, res) => {
   try {
-    const coinInfo = req.body;
+    const { symbol = 'BTCUSDT', category = 'linear' } = req.body;
+    const [kl, markKl, idxKl, fund, oi, lsr, trades] = await Promise.all([
+      restClient.getKline({ category, symbol, interval: '1', limit: 200 }),
+      restClient.getMarkPriceKline({ category, symbol, interval: '1', limit: 200 }),
+      restClient.getIndexPriceKline({ category, symbol, interval: '1', limit: 200 }),
+      restClient.getFundingRateHistory({ category, symbol, limit: 200 }),
+      restClient.getOpenInterest({ category, symbol, intervalTime: '5min', limit: 200 }),
+      restClient.getLongShortRatio({ category, symbol, period: '5min', limit: 200 }),
+      restClient.getPublicTradingHistory({ category, symbol, limit: 1000 }),
+    ]);
+    const toNum = (s) => (s ? Number(s) : 0);
+    const candles = kl.result.list.map((r) => ({
+      time: Math.floor(Number(r[0]) / 1000),
+      open: toNum(r[1]),
+      high: toNum(r[2]),
+      low: toNum(r[3]),
+      close: toNum(r[4]),
+      volume: toNum(r[5]),
+    }));
+    const markLine = markKl.result.list.map((r) => ({
+      time: Math.floor(Number(r[0]) / 1000),
+      value: toNum(r[4]),
+    }));
+    const indexLine = idxKl.result.list.map((r) => ({
+      time: Math.floor(Number(r[0]) / 1000),
+      value: toNum(r[4]),
+    }));
+    const fundingRate = fund.result.list.map((x) => ({
+      time: Math.floor(Number(x.fundingTime) / 1000),
+      value: Number(x.fundingRate) * 100,
+    }));
+    const oiLine = [];
+    let prevOi = 0;
+    oi.result.list.forEach((r) => {
+      const value = toNum(r[1]);
+      const time = Math.floor(Number(r[0]) / 1000);
+      oiLine.push({ time, value, delta: value - prevOi });
+      prevOi = value;
+    });
+    const lsrLine = lsr.result.list.map((r) => ({
+      time: Math.floor(Number(r[0]) / 1000),
+      value: toNum(r[1]),
+    }));
+    const buckets = {};
+    (trades.result.list || []).forEach((t) => {
+      const ts = Math.floor(Number(t.execTime) / 1000);
+      const m = Math.floor(ts / 60) * 60;
+      if (!buckets[m]) buckets[m] = { buy: 0, sell: 0 };
+      const qty = toNum(t.execQty);
+      if (t.side === 'Buy') buckets[m].buy += qty;
+      else buckets[m].sell += qty;
+    });
+    const imbalance = Object.entries(buckets).map(([time, { buy, sell }]) => {
+      const total = buy + sell;
+      const val = total ? (buy - sell) / total : 0;
+      return { time: Number(time), buy, sell, imbalance: val };
+    });
+    const coinInfo = {
+      symbol,
+      candles,
+      markLine,
+      indexLine,
+      fundingRate,
+      openInterest: oiLine,
+      longShortRatio: lsrLine,
+      tradeImbalance: imbalance,
+    };
     const prompt =
-      '당신은 고도로 숙련된 트레이더이자 차트 분석 전문가입니다.\\n\\n' +
-      `${JSON.stringify(coinInfo)}\\n\\n` +
-      '모두 RSI 지표, 볼린저밴드, 캔들 패턴이 포함되어 있습니다. 또한 1분봉을 기준으로 5분봉이나 15분을 만들 수 있으니, 감안해서 모든 RSI 를 계산 후 생각하세요.\\n\\n' +
-      '### 분석 요청 사항:\\n' +
-      '1. 현재 시점에서의 최적 포지션을 선택해주세요:\\n   - 매수 (Long) / 매도 (Short)\\n 보류는 없습니다. 무조건 매수 또는 매도로 선택하세요.' +
-      '2. 선택한 포지션이 적절한 이유를 RSI, 볼린저밴드, 캔들 패턴 기반으로 설명해주세요.\\n' +
-      '3. 적절한 레버리지 (1x ~ 50x) 를 제안해주세요.\\n' +
-      '4. 진입 시점 기준:\\n   - **익절가와 예상 수익률(%)**\\n   - **손절가와 예상 손실률(%)**\\n\\n' +
-      '응답 형식 (꼭 아래 구조를 따라주세요):\\n---\\n포지션 추천: 매수 (Long) / 매도 (Short) \\n 추천 레버리지: X배 \\n 익절가 및 예상 수익률: $XX / +XX%\\n손절가 및 예상 손실률: $XX / -XX% \\n 분석 근거: \\n- RSI 상태 (과매수/과매도 여부) \\n- 볼린저밴드 위치 (상단 돌파 / 하단 이탈 등)\\n - 캔들 패턴 해석 (반전/지속 가능성)\\n \\n- 1분, 5분, 15분봉 간 흐름 일치 여부\\n 모든 수치는 전략적 트레이딩 의사결정 보조용입니다. 정확한 근거 기반 판단만 제시해주세요.'
-      //'### 응답 형식 (꼭 아래 구조를 따라주세요):\\n---\\n📈 **포지션 추천:** 매수 / 매도 / 보류\\n🔁 **추천 레버리지:** X배\\n🎯 **익절가 및 예상 수익률:** $XX / +XX%\\n🛑 **손절가 및 예상 손실률:** $XX / -XX%\\n📊 **분석 근거:**\\n- RSI 상태 (과매수/과매도 여부)\\n- 볼린저밴드 위치 (상단 돌파 / 하단 이탈 등)\\n- 캔들 패턴 해석 (반전/지속 가능성)\\n- 1분, 5분, 15분봉 간 흐름 일치 여부\\n\\n모든 수치는 전략적 트레이딩 의사결정 보조용입니다. 정확한 근거 기반 판단만 제시해주세요.';
-
-    console.log(prompt);
+      '당신은 고도로 숙련된 트레이더이자 차트 분석 전문가입니다.\n\n' +
+      `${JSON.stringify(coinInfo)}\n\n` +
+      '모두 RSI 지표, 볼린저밴드, 캔들 패턴이 포함되어 있습니다. 또한 1분봉을 기준으로 5분봉이나 15분을 만들 수 있으니, 감안해서 모든 RSI 를 계산 후 생각하세요.\n\n' +
+      '### 분석 요청 사항:\n' +
+      '1. 현재 시점에서의 최적 포지션을 선택해주세요:\n   - 매수 (Long) / 매도 (Short)\n 보류는 없습니다. 무조건 매수 또는 매도로 선택하세요.' +
+      '2. 선택한 포지션이 적절한 이유를 RSI, 볼린저밴드, 캔들 패턴 기반으로 설명해주세요.\n' +
+      '3. 적절한 레버리지 (1x ~ 50x) 를 제안해주세요.\n' +
+      '4. 진입 시점 기준:\n   - **익절가와 예상 수익률(%)**\n   - **손절가와 예상 손실률(%)**\n\n' +
+      '응답 형식 (꼭 아래 구조를 따라주세요):\n---\n포지션 추천: 매수 (Long) / 매도 (Short) \n 추천 레버리지: X배 \n 익절가및 예상 수익률: $XX / +XX%\n손절가 및 예상 손실률: $XX / -XX% \n 분석 근거: \n- RSI 상태 (과매수/과매도 여부) \n- 볼린저밴드 위치 (상단 돌파 / 하단 이탈 등)\n - 캔들 패턴 해석 (반전/지속 가능성)\n \n- 1분, 5분, 15분봉 간 흐름 일치 여부\n 모든 수치는 전략적 트레이딩 의사결정 보조용입니다. 정확한 근거 기반 판단만 제시해주세요.';
     const response = await axios.post(
-      // 👇 더 높은 할당량을 가진 'gemini-1.5-flash-latest' 모델로 변경
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         contents: [
@@ -560,10 +623,7 @@ app.post('/api/gemini', async (req, res) => {
     console.log('Gemini Response:', text);
     res.json({ text });
   } catch (err) {
-    console.error(
-      'Error fetching Gemini analysis:',
-      err.response?.data || err.message,
-    );
+    console.error('Error fetching Gemini analysis:', err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to fetch Gemini analysis' });
   }
 });

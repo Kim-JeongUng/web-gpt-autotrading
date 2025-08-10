@@ -269,17 +269,10 @@ export function EnhancedTradingChart({ symbol }: EnhancedTradingChartProps) {
   }, [symbol, timeframe, loading])
 
   const handleAskGemini = async () => {
-    if (chartData.length === 0) return;
     setIsAsking(true);
     setGeminiAnswer(null);
     try {
-      const payload = {
-        symbol,
-        currentPrice,
-        rsi: chartData[chartData.length - 1].rsi,
-        data: chartData.slice(-20),
-      };
-      const text = await bybitService.getGeminiAnalysis(payload);
+      const text = await bybitService.getGeminiAnalysis(symbol);
       setGeminiAnswer(text);
     } catch (err: any) {
       setGeminiAnswer('오류: ' + (err.message || 'failed'));
