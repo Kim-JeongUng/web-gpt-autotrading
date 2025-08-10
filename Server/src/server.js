@@ -196,6 +196,121 @@ app.get('/api/orderbook', async (req, res) => {
   }
 });
 
+// Additional public market data endpoints
+app.get('/api/mark-price-kline', async (req, res) => {
+  try {
+    const {
+      symbol = 'BTCUSDT',
+      interval = '1',
+      limit = '200',
+      category = 'linear',
+    } = req.query;
+    const result = await restClient.getMarkPriceKline({
+      category,
+      symbol,
+      interval: interval.toString(),
+      limit: parseInt(limit, 10),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching mark price kline:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/index-price-kline', async (req, res) => {
+  try {
+    const {
+      symbol = 'BTCUSDT',
+      interval = '1',
+      limit = '200',
+      category = 'linear',
+    } = req.query;
+    const result = await restClient.getIndexPriceKline({
+      category,
+      symbol,
+      interval: interval.toString(),
+      limit: parseInt(limit, 10),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching index price kline:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/funding-history', async (req, res) => {
+  try {
+    const { symbol = 'BTCUSDT', category = 'linear', limit = '200' } = req.query;
+    const result = await restClient.getFundingRateHistory({
+      category,
+      symbol,
+      limit: parseInt(limit, 10),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching funding history:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/open-interest', async (req, res) => {
+  try {
+    const {
+      symbol = 'BTCUSDT',
+      category = 'linear',
+      intervalTime = '5min',
+      limit = '200',
+    } = req.query;
+    const result = await restClient.getOpenInterest({
+      category,
+      symbol,
+      intervalTime: intervalTime.toString(),
+      limit: parseInt(limit, 10),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching open interest:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/long-short-ratio', async (req, res) => {
+  try {
+    const {
+      symbol = 'BTCUSDT',
+      category = 'linear',
+      period = '5min',
+      limit = '200',
+    } = req.query;
+    const result = await restClient.getLongShortRatio({
+      category,
+      symbol,
+      period: period.toString(),
+      limit: parseInt(limit, 10),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching long short ratio:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/recent-trade', async (req, res) => {
+  try {
+    const { symbol = 'BTCUSDT', category = 'linear', limit = '1000' } = req.query;
+    const result = await restClient.getPublicTradingHistory({
+      category,
+      symbol,
+      limit: parseInt(limit, 10),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching recent trade:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/orders', async (req, res) => {
   try {
     const result = await restClient.getActiveOrders({ category: 'linear' });
