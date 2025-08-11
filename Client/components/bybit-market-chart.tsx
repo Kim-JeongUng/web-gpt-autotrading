@@ -21,6 +21,12 @@ function toNum(s?: string) {
   return s ? Number(s) : 0;
 }
 
+function toSec(v?: string | number) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return NaN;
+  return n > 1e12 ? Math.floor(n / 1000) : n;
+}
+
 function removeBranding(ref: HTMLDivElement | null) {
   if (!ref) return;
   const link = ref.querySelector<HTMLAnchorElement>("a[href*='tradingview.com']");
@@ -34,6 +40,7 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
   const oiRef = useRef<HTMLDivElement>(null);
   const lsrRef = useRef<HTMLDivElement>(null);
   const imbRef = useRef<HTMLDivElement>(null);
+  const legendRef = useRef<HTMLDivElement>(null);
 
   const mainChart = useRef<ReturnType<typeof createChart>>();
   const volChart = useRef<ReturnType<typeof createChart>>();
@@ -55,6 +62,24 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
   const tradeBuckets = useRef<Record<number, { buy: number; sell: number }>>({});
 
   useEffect(() => {
+    if (!mainChart.current || !legendRef.current) return;
+    const handler = (param: any) => {
+      if (!param.time || !candleSeries.current) {
+        legendRef.current!.innerText = '';
+        return;
+      }
+      const price = param.seriesPrices.get(candleSeries.current) as any;
+      if (!price) {
+        legendRef.current!.innerText = '';
+        return;
+      }
+      legendRef.current!.innerText = `O ${price.open.toFixed(2)} H ${price.high.toFixed(2)} L ${price.low.toFixed(2)} C ${price.close.toFixed(2)}`;
+    };
+    mainChart.current.subscribeCrosshairMove(handler);
+    return () => mainChart.current?.unsubscribeCrosshairMove(handler);
+  }, []);
+
+  useEffect(() => {
     if (!mainRef.current || mainChart.current) return;
     mainChart.current = createChart(mainRef.current, {
       layout: {
@@ -66,34 +91,54 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
         horzLines: { color: "#374151" },
       },
       rightPriceScale: { borderColor: "#374151" },
-      timeScale: { borderColor: "#374151" },
+      timeScale: {
+        borderColor: "#374151",
+        timeVisible: true,
+        secondsVisible: false,
+      },
     });
     removeBranding(mainRef.current);
     volChart.current = createChart(volRef.current!, {
       layout: { background: { type: ColorType.Solid, color: "#111827" }, textColor: "#e5e7eb" },
       rightPriceScale: { borderColor: "#374151" },
-      timeScale: { borderColor: "#374151" },
+      timeScale: {
+        borderColor: "#374151",
+        timeVisible: true,
+        secondsVisible: false,
+      },
       grid: { vertLines: { color: "#374151" }, horzLines: { color: "#374151" } },
     });
     removeBranding(volRef.current);
     fundChart.current = createChart(fundRef.current!, {
       layout: { background: { type: ColorType.Solid, color: "#111827" }, textColor: "#e5e7eb" },
       rightPriceScale: { borderColor: "#374151" },
-      timeScale: { borderColor: "#374151" },
+      timeScale: {
+        borderColor: "#374151",
+        timeVisible: true,
+        secondsVisible: false,
+      },
       grid: { vertLines: { color: "#374151" }, horzLines: { color: "#374151" } },
     });
     removeBranding(fundRef.current);
     oiChart.current = createChart(oiRef.current!, {
       layout: { background: { type: ColorType.Solid, color: "#111827" }, textColor: "#e5e7eb" },
       rightPriceScale: { borderColor: "#374151" },
-      timeScale: { borderColor: "#374151" },
+      timeScale: {
+        borderColor: "#374151",
+        timeVisible: true,
+        secondsVisible: false,
+      },
       grid: { vertLines: { color: "#374151" }, horzLines: { color: "#374151" } },
     });
     removeBranding(oiRef.current);
     lsrChart.current = createChart(lsrRef.current!, {
       layout: { background: { type: ColorType.Solid, color: "#111827" }, textColor: "#e5e7eb" },
       rightPriceScale: { borderColor: "#374151" },
-      timeScale: { borderColor: "#374151" },
+      timeScale: {
+        borderColor: "#374151",
+        timeVisible: true,
+        secondsVisible: false,
+      },
       grid: { vertLines: { color: "#374151" }, horzLines: { color: "#374151" } },
     });
     removeBranding(lsrRef.current);
@@ -123,47 +168,58 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
       const sortedKlines = [...kl].sort(
         (a: any, b: any) => Number(a[0]) - Number(b[0]),
       );
-      const candles: CandlestickData[] = sortedKlines.map((r: any) => ({
-        time: Math.floor(Number(r[0]) / 1000) as Time,
-        open: toNum(r[1]),
-        high: toNum(r[2]),
-        low: toNum(r[3]),
-        close: toNum(r[4]),
-      }));
-      const volumes: HistogramData[] = sortedKlines.map((r: any) => ({
-        time: Math.floor(Number(r[0]) / 1000) as Time,
-        value: toNum(r[5]),
-        color: toNum(r[4]) >= toNum(r[1]) ? "#22c55e" : "#ef4444",
-      }));
+      const candles: CandlestickData[] = sortedKlines
+        .map((r: any) => ({
+          time: toSec(r[0]) as Time,
+          open: toNum(r[1]),
+          high: toNum(r[2]),
+          low: toNum(r[3]),
+          close: toNum(r[4]),
+        }))
+        .filter((d) => Number.isFinite(d.time));
+      const volumes: HistogramData[] = sortedKlines
+        .map((r: any) => ({
+          time: toSec(r[0]) as Time,
+          value: toNum(r[5]),
+          color: toNum(r[4]) >= toNum(r[1]) ? "#22c55e" : "#ef4444",
+        }))
+        .filter((d) => Number.isFinite(d.time));
 
       const sortedMark = [...markKl].sort(
         (a: any, b: any) => Number(a[0]) - Number(b[0]),
       );
-      const markLine: LineData[] = sortedMark.map((r: any) => ({
-        time: Math.floor(Number(r[0]) / 1000) as Time,
-        value: toNum(r[4]),
-      }));
+      const markLine: LineData[] = sortedMark
+        .map((r: any) => ({ time: toSec(r[0]) as Time, value: toNum(r[4]) }))
+        .filter((d) => Number.isFinite(d.time));
       const sortedIdx = [...idxKl].sort(
         (a: any, b: any) => Number(a[0]) - Number(b[0]),
       );
-      const indexLine: LineData[] = sortedIdx.map((r: any) => ({
-        time: Math.floor(Number(r[0]) / 1000) as Time,
-        value: toNum(r[4]),
-      }));
+      const indexLine: LineData[] = sortedIdx
+        .map((r: any) => ({ time: toSec(r[0]) as Time, value: toNum(r[4]) }))
+        .filter((d) => Number.isFinite(d.time));
       const sortedFund = [...fund].sort(
-        (a: any, b: any) => Number(a.fundingTime) - Number(b.fundingTime),
+        (a: any, b: any) =>
+          Number(a.fundingRateTimestamp ?? a.fundingTime ?? a.timestamp) -
+          Number(b.fundingRateTimestamp ?? b.fundingTime ?? b.timestamp),
       );
-      const fundingLine: LineData[] = sortedFund.map((x: any) => ({
-        time: Math.floor(Number(x.fundingTime) / 1000) as Time,
-        value: Number(x.fundingRate) * 100,
-      }));
+      const fundingLine: LineData[] = sortedFund
+        .map((x: any) => ({
+          time: toSec(
+            x.fundingRateTimestamp ?? x.fundingTime ?? x.timestamp,
+          ) as Time,
+          value: Number(x.fundingRate) * 100,
+        }))
+        .filter((d) => Number.isFinite(d.time));
       const sortedOi = [...oi].sort(
-        (a: any, b: any) => Number(a.timestamp) - Number(b.timestamp),
+        (a: any, b: any) =>
+          Number(a.timestamp ?? a[0]) - Number(b.timestamp ?? b[0]),
       );
-      const oiLine: LineData[] = sortedOi.map((x: any) => ({
-        time: Math.floor(Number(x.timestamp) / 1000) as Time,
-        value: Number(x.openInterest),
-      }));
+      const oiLine: LineData[] = sortedOi
+        .map((x: any) => ({
+          time: toSec(x.timestamp ?? x[0]) as Time,
+          value: Number(x.openInterest ?? x[1]),
+        }))
+        .filter((d) => Number.isFinite(d.time));
       const oiDelta: HistogramData[] = oiLine.map((v, i) => ({
         time: v.time,
         value: i === 0 ? 0 : v.value - oiLine[i - 1].value,
@@ -175,16 +231,19 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
             : "#ef4444",
       }));
       const sortedLsr = [...lsr].sort(
-        (a: any, b: any) => Number(a.timestamp) - Number(b.timestamp),
+        (a: any, b: any) =>
+          Number(a.timestamp ?? a[0]) - Number(b.timestamp ?? b[0]),
       );
-      const lsrLine: LineData[] = sortedLsr.map((x: any) => ({
-        time: Math.floor(Number(x.timestamp) / 1000) as Time,
-        value: Number(x.longAccountRatio),
-      }));
+      const lsrLine: LineData[] = sortedLsr
+        .map((x: any) => ({
+          time: toSec(x.timestamp ?? x[0]) as Time,
+          value: Number(x.longAccountRatio ?? x[1]),
+        }))
+        .filter((d) => Number.isFinite(d.time));
 
       tradeBuckets.current = {};
       (trades as any[]).forEach((t) => {
-        const ts = Math.floor(Number(t.execTime || t.time) / 1000);
+        const ts = toSec(t.execTime || t.time);
         const m = Math.floor(ts / 60) * 60;
         if (!tradeBuckets.current[m]) tradeBuckets.current[m] = { buy: 0, sell: 0 };
         if ((t.side || t.execType) === "Buy")
@@ -249,9 +308,10 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
     const unsubs: (() => void)[] = [];
     unsubs.push(
       bybitService.subscribeKline(symbol, interval, (d) => {
-        const time = Math.floor(Number(d.start || d.startTime) / 1000) as Time;
+        const time = toSec(d.start || d.startTime);
+        if (!Number.isFinite(time)) return;
         const bar: CandlestickData = {
-          time,
+          time: time as Time,
           open: toNum(d.open),
           high: toNum(d.high),
           low: toNum(d.low),
@@ -259,7 +319,7 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
         };
         candleSeries.current?.update(bar);
         volSeries.current?.update({
-          time,
+          time: time as Time,
           value: toNum(d.volume || d.turnover),
           color: bar.close >= bar.open ? "#22c55e" : "#ef4444",
         });
@@ -267,19 +327,21 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
     );
     unsubs.push(
       bybitService.subscribeMarkPrice(symbol, interval, (d) => {
-        const time = Math.floor(Number(d.start || d.time) / 1000) as Time;
-        markSeries.current?.update({ time, value: toNum(d.close) });
+        const time = toSec(d.start || d.time);
+        if (!Number.isFinite(time)) return;
+        markSeries.current?.update({ time: time as Time, value: toNum(d.close) });
       }) || (() => {}),
     );
     unsubs.push(
       bybitService.subscribeIndexPrice(symbol, interval, (d) => {
-        const time = Math.floor(Number(d.start || d.time) / 1000) as Time;
-        indexSeries.current?.update({ time, value: toNum(d.close) });
+        const time = toSec(d.start || d.time);
+        if (!Number.isFinite(time)) return;
+        indexSeries.current?.update({ time: time as Time, value: toNum(d.close) });
       }) || (() => {}),
     );
     unsubs.push(
       bybitService.subscribeTrades(symbol, (t) => {
-        const ts = Math.floor(Number(t.execTime || t.T) / 1000);
+        const ts = toSec(t.execTime || t.T);
         const m = Math.floor(ts / 60) * 60;
         if (!tradeBuckets.current[m]) tradeBuckets.current[m] = { buy: 0, sell: 0 };
         if ((t.side || t.S) === 'Buy')
@@ -302,6 +364,7 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
 
   return (
     <div className="space-y-2">
+      <div ref={legendRef} className="text-xs text-gray-300" />
       <div ref={mainRef} className="h-64 w-full" />
       <div ref={volRef} className="h-20 w-full" />
       <div ref={fundRef} className="h-20 w-full" />
