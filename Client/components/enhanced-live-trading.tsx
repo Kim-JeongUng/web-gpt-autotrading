@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useTradingStore } from "@/lib/trading-store"
 import { bybitService } from "@/lib/bybit-client"
-import { WebsocketCandlestickChart } from "@/components/websocket-candlestick-chart"
+import { BybitMarketChart } from "@/components/bybit-market-chart"
 import { RealTimeOrderBook } from "@/components/real-time-order-book"
 import { EnhancedPositionManager } from "@/components/enhanced-position-manager"
 import { TrendingUp, TrendingDown, AlertTriangle, Wifi, WifiOff, BarChart3 } from "lucide-react"
@@ -142,27 +142,7 @@ export function EnhancedLiveTrading() {
     setIsAsking(true)
     setGeminiAnswer(null)
     try {
-      const list = await bybitService.getKlines({
-        symbol: selectedSymbol,
-        interval: INTERVAL_MAP[timeframe] || '1',
-        limit: 20,
-        category: 'linear',
-      })
-      const data = list.map((k: any) => ({
-        time: Number(k[0]),
-        open: Number(k[1]),
-        high: Number(k[2]),
-        low: Number(k[3]),
-        close: Number(k[4]),
-        volume: Number(k[5]),
-      }))
-      const payload = {
-        symbol: selectedSymbol,
-        timeframe,
-        data,
-        currentPrice: data[data.length - 1]?.close,
-      }
-      const text = await bybitService.getGeminiAnalysis(payload)
+      const text = await bybitService.getGeminiAnalysis(selectedSymbol)
       setGeminiAnswer(text)
     } catch (err: any) {
       setGeminiAnswer('오류: ' + (err.message || 'failed'))
@@ -312,9 +292,9 @@ export function EnhancedLiveTrading() {
               </div>
             </CardHeader>
             <CardContent>
-              <WebsocketCandlestickChart
+              <BybitMarketChart
                 symbol={selectedSymbol}
-                timeframe={timeframe}
+                interval={INTERVAL_MAP[timeframe] || '1'}
               />
               {geminiAnswer && (
                 <Alert className="mt-4">

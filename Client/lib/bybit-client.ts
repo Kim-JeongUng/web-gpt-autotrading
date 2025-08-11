@@ -129,6 +129,232 @@ export class BybitService {
     return data.result?.list || []
   }
 
+  /** Fetch mark price klines */
+  async getMarkPriceKlines(params: {
+    symbol: string
+    interval?: string
+    limit?: number
+    category?: string
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      interval: params.interval?.toString() || '1',
+      limit: (params.limit || 200).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/mark-price-kline?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result?.list || []
+  }
+
+  /** Fetch index price klines */
+  async getIndexPriceKlines(params: {
+    symbol: string
+    interval?: string
+    limit?: number
+    category?: string
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      interval: params.interval?.toString() || '1',
+      limit: (params.limit || 200).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/index-price-kline?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result?.list || []
+  }
+
+  /** Fetch funding rate history */
+  async getFundingHistory(params: {
+    symbol: string
+    category?: string
+    limit?: number
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      limit: (params.limit || 200).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/funding-history?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result?.list || []
+  }
+
+  /** Fetch open interest */
+  async getOpenInterest(params: {
+    symbol: string
+    category?: string
+    intervalTime?: string
+    limit?: number
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      intervalTime: params.intervalTime || '5min',
+      limit: (params.limit || 200).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/open-interest?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result?.list || []
+  }
+
+  /** Fetch long/short account ratio */
+  async getLongShortRatio(params: {
+    symbol: string
+    category?: string
+    period?: string
+    limit?: number
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      period: params.period || '5min',
+      limit: (params.limit || 200).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/long-short-ratio?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result?.list || []
+  }
+
+  /** Fetch recent trades */
+  async getRecentTrades(params: {
+    symbol: string
+    category?: string
+    limit?: number
+  }) {
+    const query = new URLSearchParams({
+      symbol: params.symbol,
+      limit: (params.limit || 1000).toString(),
+      category: params.category || 'linear',
+    })
+    const res = await fetch(
+      `${SERVER_URL}/api/recent-trade?${query.toString()}`,
+    )
+    if (!res.ok) {
+      const message = await res.text()
+      throw new Error(`Server error ${res.status}: ${message}`)
+    }
+    const data = await res.json()
+    return data.result?.list || []
+  }
+
+  /** Subscribe to real-time kline updates */
+  subscribeKline(
+    symbol: string,
+    interval = '1',
+    cb: (data: any) => void,
+    category = 'linear',
+  ) {
+    if (!this.wsClient) this.initializeClients()
+    const topic = `kline.${interval}.${symbol}`
+    const handler = (msg: any) => {
+      if (msg.topic === topic) cb(msg.data[0])
+    }
+    this.wsClient?.on('update', handler)
+    this.wsClient?.subscribeV5?.(topic, category)
+    return () => {
+      this.wsClient?.unsubscribeV5?.(topic, category)
+      // @ts-ignore - removeListener exists on Node event emitter
+      this.wsClient?.off?.('update', handler) ||
+        this.wsClient?.removeListener?.('update', handler)
+    }
+  }
+
+  /** Subscribe to mark price kline updates */
+  subscribeMarkPrice(
+    symbol: string,
+    interval = '1',
+    cb: (data: any) => void,
+    category = 'linear',
+  ) {
+    if (!this.wsClient) this.initializeClients()
+    const topic = `markPriceKline.${interval}.${symbol}`
+    const handler = (msg: any) => {
+      if (msg.topic === topic) cb(msg.data[0])
+    }
+    this.wsClient?.on('update', handler)
+    this.wsClient?.subscribeV5?.(topic, category)
+    return () => {
+      this.wsClient?.unsubscribeV5?.(topic, category)
+      this.wsClient?.off?.('update', handler) ||
+        this.wsClient?.removeListener?.('update', handler)
+    }
+  }
+
+  /** Subscribe to index price kline updates */
+  subscribeIndexPrice(
+    symbol: string,
+    interval = '1',
+    cb: (data: any) => void,
+    category = 'linear',
+  ) {
+    if (!this.wsClient) this.initializeClients()
+    const topic = `indexPriceKline.${interval}.${symbol}`
+    const handler = (msg: any) => {
+      if (msg.topic === topic) cb(msg.data[0])
+    }
+    this.wsClient?.on('update', handler)
+    this.wsClient?.subscribeV5?.(topic, category)
+    return () => {
+      this.wsClient?.unsubscribeV5?.(topic, category)
+      this.wsClient?.off?.('update', handler) ||
+        this.wsClient?.removeListener?.('update', handler)
+    }
+  }
+
+  /** Subscribe to real-time public trades */
+  subscribeTrades(
+    symbol: string,
+    cb: (trade: any) => void,
+    category = 'linear',
+  ) {
+    if (!this.wsClient) this.initializeClients()
+    const topic = `publicTrade.${symbol}`
+    const handler = (msg: any) => {
+      if (msg.topic === topic) {
+        ;(msg.data || []).forEach((t: any) => cb(t))
+      }
+    }
+    this.wsClient?.on('update', handler)
+    this.wsClient?.subscribeV5?.(topic, category)
+    return () => {
+      this.wsClient?.unsubscribeV5?.(topic, category)
+      this.wsClient?.off?.('update', handler) ||
+        this.wsClient?.removeListener?.('update', handler)
+    }
+  }
+
   async getAccountBalance() {
 
     try {
@@ -300,12 +526,12 @@ export class BybitService {
   //   }
   // }
 
-  async getGeminiAnalysis(data: any) {
+  async getGeminiAnalysis(symbol: string) {
     try {
       const res = await fetch(`${SERVER_URL}/api/gemini`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ symbol }),
       })
       if (!res.ok) {
         const message = await res.text()
