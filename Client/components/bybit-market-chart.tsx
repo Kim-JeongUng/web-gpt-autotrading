@@ -119,44 +119,65 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
         bybitService.getRecentTrades({ symbol, limit: 1000 }),
       ]);
 
-      const candles: CandlestickData[] = kl.map((r: any) => ({
+      // Bybit REST responses are newest-first; sort to ascending time for the chart
+      const sortedKlines = [...kl].sort(
+        (a: any, b: any) => Number(a[0]) - Number(b[0]),
+      );
+      const candles: CandlestickData[] = sortedKlines.map((r: any) => ({
         time: Math.floor(Number(r[0]) / 1000) as Time,
         open: toNum(r[1]),
         high: toNum(r[2]),
         low: toNum(r[3]),
         close: toNum(r[4]),
       }));
-      const volumes: HistogramData[] = kl.map((r: any) => ({
+      const volumes: HistogramData[] = sortedKlines.map((r: any) => ({
         time: Math.floor(Number(r[0]) / 1000) as Time,
         value: toNum(r[5]),
         color: toNum(r[4]) >= toNum(r[1]) ? "#22c55e" : "#ef4444",
       }));
-      const markLine: LineData[] = markKl.map((r: any) => ({
+
+      const sortedMark = [...markKl].sort(
+        (a: any, b: any) => Number(a[0]) - Number(b[0]),
+      );
+      const markLine: LineData[] = sortedMark.map((r: any) => ({
         time: Math.floor(Number(r[0]) / 1000) as Time,
         value: toNum(r[4]),
       }));
-      const indexLine: LineData[] = idxKl.map((r: any) => ({
+      const sortedIdx = [...idxKl].sort(
+        (a: any, b: any) => Number(a[0]) - Number(b[0]),
+      );
+      const indexLine: LineData[] = sortedIdx.map((r: any) => ({
         time: Math.floor(Number(r[0]) / 1000) as Time,
         value: toNum(r[4]),
       }));
-      const fundingLine: LineData[] = fund.map((x: any) => ({
+      const sortedFund = [...fund].sort(
+        (a: any, b: any) => Number(a.fundingTime) - Number(b.fundingTime),
+      );
+      const fundingLine: LineData[] = sortedFund.map((x: any) => ({
         time: Math.floor(Number(x.fundingTime) / 1000) as Time,
         value: Number(x.fundingRate) * 100,
       }));
-      const oiLine: LineData[] = oi.map((x: any) => ({
+      const sortedOi = [...oi].sort(
+        (a: any, b: any) => Number(a.timestamp) - Number(b.timestamp),
+      );
+      const oiLine: LineData[] = sortedOi.map((x: any) => ({
         time: Math.floor(Number(x.timestamp) / 1000) as Time,
         value: Number(x.openInterest),
       }));
       const oiDelta: HistogramData[] = oiLine.map((v, i) => ({
         time: v.time,
         value: i === 0 ? 0 : v.value - oiLine[i - 1].value,
-        color: i === 0
-          ? "#60a5fa"
-          : v.value - oiLine[i - 1].value >= 0
+        color:
+          i === 0
+            ? "#60a5fa"
+            : v.value - oiLine[i - 1].value >= 0
             ? "#22c55e"
             : "#ef4444",
       }));
-      const lsrLine: LineData[] = lsr.map((x: any) => ({
+      const sortedLsr = [...lsr].sort(
+        (a: any, b: any) => Number(a.timestamp) - Number(b.timestamp),
+      );
+      const lsrLine: LineData[] = sortedLsr.map((x: any) => ({
         time: Math.floor(Number(x.timestamp) / 1000) as Time,
         value: Number(x.longAccountRatio),
       }));
@@ -170,8 +191,9 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
           tradeBuckets.current[m].buy += toNum(t.execQty || t.qty);
         else tradeBuckets.current[m].sell += toNum(t.execQty || t.qty);
       });
-      const imbalance: HistogramData[] = Object.entries(tradeBuckets.current).map(
-        ([time, v]) => {
+      const imbalance: HistogramData[] = Object.entries(tradeBuckets.current)
+        .sort((a, b) => Number(a[0]) - Number(b[0]))
+        .map(([time, v]) => {
           const total = v.buy + v.sell;
           const val = total > 0 ? (v.buy - v.sell) / total : 0;
           return {
@@ -179,8 +201,7 @@ export function BybitMarketChart({ symbol, interval = "1" }: Props) {
             value: val,
             color: val >= 0 ? "#22c55e" : "#ef4444",
           };
-        },
-      );
+        });
 
       candleSeries.current =
         candleSeries.current ||
