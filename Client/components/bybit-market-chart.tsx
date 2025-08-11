@@ -41,7 +41,13 @@ function linkTimeScales(charts: ReturnType<typeof createChart>[]) {
   const syncing = { current: false };
   charts.forEach((chart) => {
     chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
-      if (syncing.current || !range) return;
+      if (
+        syncing.current ||
+        !range ||
+        range.from == null ||
+        range.to == null
+      )
+        return;
       syncing.current = true;
       charts.forEach((c) => {
         if (c !== chart) c.timeScale().setVisibleRange(range);
