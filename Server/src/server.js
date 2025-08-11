@@ -200,6 +200,121 @@ app.get('/api/orderbook', async (req, res) => {
   }
 });
 
+// Additional public market data endpoints
+app.get('/api/mark-price-kline', async (req, res) => {
+  try {
+    const {
+      symbol = 'BTCUSDT',
+      interval = '1',
+      limit = '200',
+      category = 'linear',
+    } = req.query;
+    const result = await restClient.getMarkPriceKline({
+      category,
+      symbol,
+      interval: interval.toString(),
+      limit: parseInt(limit, 10),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching mark price kline:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/index-price-kline', async (req, res) => {
+  try {
+    const {
+      symbol = 'BTCUSDT',
+      interval = '1',
+      limit = '200',
+      category = 'linear',
+    } = req.query;
+    const result = await restClient.getIndexPriceKline({
+      category,
+      symbol,
+      interval: interval.toString(),
+      limit: parseInt(limit, 10),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching index price kline:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/funding-history', async (req, res) => {
+  try {
+    const { symbol = 'BTCUSDT', category = 'linear', limit = '200' } = req.query;
+    const result = await restClient.getFundingRateHistory({
+      category,
+      symbol,
+      limit: parseInt(limit, 10),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching funding history:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/open-interest', async (req, res) => {
+  try {
+    const {
+      symbol = 'BTCUSDT',
+      category = 'linear',
+      intervalTime = '5min',
+      limit = '200',
+    } = req.query;
+    const result = await restClient.getOpenInterest({
+      category,
+      symbol,
+      intervalTime: intervalTime.toString(),
+      limit: parseInt(limit, 10),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching open interest:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/long-short-ratio', async (req, res) => {
+  try {
+    const {
+      symbol = 'BTCUSDT',
+      category = 'linear',
+      period = '5min',
+      limit = '200',
+    } = req.query;
+    const result = await restClient.getLongShortRatio({
+      category,
+      symbol,
+      period: period.toString(),
+      limit: parseInt(limit, 10),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching long short ratio:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/recent-trade', async (req, res) => {
+  try {
+    const { symbol = 'BTCUSDT', category = 'linear', limit = '1000' } = req.query;
+    const result = await restClient.getPublicTradingHistory({
+      category,
+      symbol,
+      limit: parseInt(limit, 10),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching recent trade:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/orders', async (req, res) => {
   try {
     const result = await restClient.getActiveOrders({ category: 'linear' });
@@ -533,24 +648,121 @@ app.listen(PORT, () => {
 //   }
 // });
 
+
 app.post('/api/gemini', async (req, res) => {
   try {
-    const coinInfo = req.body;
-    const prompt =
-      '당신은 고도로 숙련된 트레이더이자 차트 분석 전문가입니다.\\n\\n' +
-      `${JSON.stringify(coinInfo)}\\n\\n` +
-      '모두 RSI 지표, 볼린저밴드, 캔들 패턴이 포함되어 있습니다. 또한 1분봉을 기준으로 5분봉이나 15분을 만들 수 있으니, 감안해서 모든 RSI 를 계산 후 생각하세요.\\n\\n' +
-      '### 분석 요청 사항:\\n' +
-      '1. 현재 시점에서의 최적 포지션을 선택해주세요:\\n   - 매수 (Long) / 매도 (Short)\\n 보류는 없습니다. 무조건 매수 또는 매도로 선택하세요.' +
-      '2. 선택한 포지션이 적절한 이유를 RSI, 볼린저밴드, 캔들 패턴 기반으로 설명해주세요.\\n' +
-      '3. 적절한 레버리지 (1x ~ 50x) 를 제안해주세요.\\n' +
-      '4. 진입 시점 기준:\\n   - **익절가와 예상 수익률(%)**\\n   - **손절가와 예상 손실률(%)**\\n\\n' +
-      '응답 형식 (꼭 아래 구조를 따라주세요):\\n---\\n포지션 추천: 매수 (Long) / 매도 (Short) \\n 추천 레버리지: X배 \\n 익절가 및 예상 수익률: $XX / +XX%\\n손절가 및 예상 손실률: $XX / -XX% \\n 분석 근거: \\n- RSI 상태 (과매수/과매도 여부) \\n- 볼린저밴드 위치 (상단 돌파 / 하단 이탈 등)\\n - 캔들 패턴 해석 (반전/지속 가능성)\\n \\n- 1분, 5분, 15분봉 간 흐름 일치 여부\\n 모든 수치는 전략적 트레이딩 의사결정 보조용입니다. 정확한 근거 기반 판단만 제시해주세요.'
-      //'### 응답 형식 (꼭 아래 구조를 따라주세요):\\n---\\n📈 **포지션 추천:** 매수 / 매도 / 보류\\n🔁 **추천 레버리지:** X배\\n🎯 **익절가 및 예상 수익률:** $XX / +XX%\\n🛑 **손절가 및 예상 손실률:** $XX / -XX%\\n📊 **분석 근거:**\\n- RSI 상태 (과매수/과매도 여부)\\n- 볼린저밴드 위치 (상단 돌파 / 하단 이탈 등)\\n- 캔들 패턴 해석 (반전/지속 가능성)\\n- 1분, 5분, 15분봉 간 흐름 일치 여부\\n\\n모든 수치는 전략적 트레이딩 의사결정 보조용입니다. 정확한 근거 기반 판단만 제시해주세요.';
+    const { symbol = 'BTCUSDT', category = 'linear' } = req.body;
+    const [kl, markKl, idxKl, fund, oi, lsr, trades] = await Promise.all([
+      restClient.getKline({ category, symbol, interval: '1', limit: 200 }),
+      restClient.getMarkPriceKline({ category, symbol, interval: '1', limit: 200 }),
+      restClient.getIndexPriceKline({ category, symbol, interval: '1', limit: 200 }),
+      restClient.getFundingRateHistory({ category, symbol, limit: 200 }),
+      restClient.getOpenInterest({ category, symbol, intervalTime: '5min', limit: 200 }),
+      restClient.getLongShortRatio({ category, symbol, period: '5min', limit: 200 }),
+      restClient.getPublicTradingHistory({ category, symbol, limit: 1000 }),
+    ]);
+    const toNum = (s) => (s ? Number(s) : 0);
 
-    console.log(prompt);
+    const candles = (kl.result.list || [])
+      .map((r) => [
+        Math.floor(Number(r[0]) / 1000),
+        toNum(r[1]),
+        toNum(r[2]),
+        toNum(r[3]),
+        toNum(r[4]),
+        toNum(r[5]),
+      ])
+      .filter((r) => Number.isFinite(r[0]))
+      .sort((a, b) => a[0] - b[0]);
+
+    const markLine = (markKl.result.list || [])
+      .map((r) => [Math.floor(Number(r[0]) / 1000), toNum(r[4])])
+      .filter((r) => Number.isFinite(r[0]))
+      .sort((a, b) => a[0] - b[0]);
+
+    const indexLine = (idxKl.result.list || [])
+      .map((r) => [Math.floor(Number(r[0]) / 1000), toNum(r[4])])
+      .filter((r) => Number.isFinite(r[0]))
+      .sort((a, b) => a[0] - b[0]);
+
+    const fundingRate = (fund.result.list || [])
+      .map((x) => [
+        Math.floor(
+          Number(x.fundingRateTimestamp || x.fundingTime || x.timestamp) / 1000,
+        ),
+        Number(x.fundingRate) * 100,
+      ])
+      .filter((r) => Number.isFinite(r[0]))
+      .sort((a, b) => a[0] - b[0]);
+
+    const oiLine = [];
+    let prevOi = 0;
+    (oi.result.list || []).forEach((x) => {
+      const time = Math.floor(Number(x.timestamp || x[0]) / 1000);
+      const value = toNum(x.openInterest || x[1]);
+      if (!Number.isFinite(time)) return;
+      oiLine.push([time, value, value - prevOi]);
+      prevOi = value;
+    });
+    oiLine.sort((a, b) => a[0] - b[0]);
+
+    const lsrLine = (lsr.result.list || [])
+      .map((x) => [
+        Math.floor(Number(x.timestamp || x[0]) / 1000),
+        toNum(x.buyRatio ?? x[1]) * 100,
+      ])
+      .filter((r) => Number.isFinite(r[0]))
+      .sort((a, b) => a[0] - b[0]);
+
+    const buckets = {};
+    (trades.result.list || []).forEach((t) => {
+      const ts = Math.floor(Number(t.execTime) / 1000);
+      const m = Math.floor(ts / 60) * 60;
+      if (!buckets[m]) buckets[m] = { buy: 0, sell: 0 };
+      const qty = toNum(t.execQty);
+      if (t.side === 'Buy') buckets[m].buy += qty;
+      else buckets[m].sell += qty;
+    });
+    const imbalance = Object.entries(buckets)
+      .map(([time, { buy, sell }]) => {
+        const total = buy + sell;
+        return [Number(time), buy, sell, total ? (buy - sell) / total : 0];
+      })
+      .sort((a, b) => a[0] - b[0]);
+
+    const schema = {
+      candles: ['time', 'open', 'high', 'low', 'close', 'volume'],
+      markLine: ['time', 'value'],
+      indexLine: ['time', 'value'],
+      fundingRate: ['time', 'value'],
+      openInterest: ['time', 'value', 'delta'],
+      longShortRatio: ['time', 'value'],
+      tradeImbalance: ['time', 'buy', 'sell', 'imbalance'],
+    };
+
+    const coinInfo = {
+      symbol,
+      schema,
+      candles,
+      markLine,
+      indexLine,
+      fundingRate,
+      openInterest: oiLine,
+      longShortRatio: lsrLine,
+      tradeImbalance: imbalance,
+    };
+
+    const prompt =
+      '당신은 고도로 숙련된 트레이더이자 차트 분석 전문가입니다.\n\n' +
+      `${JSON.stringify(coinInfo)}\n\n` +
+      '모두 RSI 지표, 볼린저밴드, 캔들 패턴이 포함되어 있습니다. 또한 1분봉을 기준으로 5분봉이나 15분을 만들 수 있으니, 감안해서 모든 RSI 를 계산 후 생각하세요.\n\n' +
+      '### 분석 요청 사항:\n' +
+      '1. 현재 시점에서의 최적 포지션을 선택해주세요:\n   - 매수 (Long) / 매도 (Short)\n 보류는 없습니다. 무조건 매수 또는 매도로 선택하세요.' +
+      '2. 선택한 포지션이 적절한 이유를 RSI, 볼린저밴드, 캔들 패턴 기반으로 설명해주세요.\n' +
+      '3. 적절한 레버리지 (1x ~ 50x) 를 제안해주세요.\n' +
+      '4. 진입 시점 기준:\n   - **익절가와 예상 수익률(%)**\n   - **손절가와 예상 손실률(%)**\n\n' +
+      '응답 형식 (꼭 아래 구조를 따라주세요):\n---\n포지션 추천: 매수 (Long) / 매도 (Short) \n 추천 레버리지: X배 \n 익절가및 예상 수익률: $XX / +XX%\n손절가 및 예상 손실률: $XX / -XX% \n 분석 근거: \n- RSI 상태 (과매수/과매도 여부) \n- 볼린저밴드 위치 (상단 돌파 / 하단 이탈 등)\n - 캔들 패턴 해석 (반전/지속 가능성)\n \n- 1분, 5분, 15분봉 간 흐름 일치 여부\n 모든 수치는 전략적 트레이딩 의사결정 보조용입니다. 정확한 근거 기반 판단만 제시해주세요.';
     const response = await axios.post(
-      // 👇 더 높은 할당량을 가진 'gemini-1.5-flash-latest' 모델로 변경
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         contents: [
@@ -565,10 +777,7 @@ app.post('/api/gemini', async (req, res) => {
     console.log('Gemini Response:', text);
     res.json({ text });
   } catch (err) {
-    console.error(
-      'Error fetching Gemini analysis:',
-      err.response?.data || err.message,
-    );
+    console.error('Error fetching Gemini analysis:', err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to fetch Gemini analysis' });
   }
 });
