@@ -542,38 +542,58 @@ app.post('/api/gemini', async (req, res) => {
       restClient.getPublicTradingHistory({ category, symbol, limit: 1000 }),
     ]);
     const toNum = (s) => (s ? Number(s) : 0);
-    const candles = kl.result.list.map((r) => ({
-      time: Math.floor(Number(r[0]) / 1000),
-      open: toNum(r[1]),
-      high: toNum(r[2]),
-      low: toNum(r[3]),
-      close: toNum(r[4]),
-      volume: toNum(r[5]),
-    }));
-    const markLine = markKl.result.list.map((r) => ({
-      time: Math.floor(Number(r[0]) / 1000),
-      value: toNum(r[4]),
-    }));
-    const indexLine = idxKl.result.list.map((r) => ({
-      time: Math.floor(Number(r[0]) / 1000),
-      value: toNum(r[4]),
-    }));
-    const fundingRate = fund.result.list.map((x) => ({
-      time: Math.floor(Number(x.fundingTime) / 1000),
-      value: Number(x.fundingRate) * 100,
-    }));
+
+    const candles = (kl.result.list || [])
+      .map((r) => [
+        Math.floor(Number(r[0]) / 1000),
+        toNum(r[1]),
+        toNum(r[2]),
+        toNum(r[3]),
+        toNum(r[4]),
+        toNum(r[5]),
+      ])
+      .filter((r) => Number.isFinite(r[0]))
+      .sort((a, b) => a[0] - b[0]);
+
+    const markLine = (markKl.result.list || [])
+      .map((r) => [Math.floor(Number(r[0]) / 1000), toNum(r[4])])
+      .filter((r) => Number.isFinite(r[0]))
+      .sort((a, b) => a[0] - b[0]);
+
+    const indexLine = (idxKl.result.list || [])
+      .map((r) => [Math.floor(Number(r[0]) / 1000), toNum(r[4])])
+      .filter((r) => Number.isFinite(r[0]))
+      .sort((a, b) => a[0] - b[0]);
+
+    const fundingRate = (fund.result.list || [])
+      .map((x) => [
+        Math.floor(
+          Number(x.fundingRateTimestamp || x.fundingTime || x.timestamp) / 1000,
+        ),
+        Number(x.fundingRate) * 100,
+      ])
+      .filter((r) => Number.isFinite(r[0]))
+      .sort((a, b) => a[0] - b[0]);
+
     const oiLine = [];
     let prevOi = 0;
-    oi.result.list.forEach((r) => {
-      const value = toNum(r[1]);
-      const time = Math.floor(Number(r[0]) / 1000);
-      oiLine.push({ time, value, delta: value - prevOi });
+    (oi.result.list || []).forEach((x) => {
+      const time = Math.floor(Number(x.timestamp || x[0]) / 1000);
+      const value = toNum(x.openInterest || x[1]);
+      if (!Number.isFinite(time)) return;
+      oiLine.push([time, value, value - prevOi]);
       prevOi = value;
     });
-    const lsrLine = lsr.result.list.map((r) => ({
-      time: Math.floor(Number(r[0]) / 1000),
-      value: toNum(r[1]),
-    }));
+    oiLine.sort((a, b) => a[0] - b[0]);
+
+    const lsrLine = (lsr.result.list || [])
+      .map((x) => [
+        Math.floor(Number(x.timestamp || x[0]) / 1000),
+        toNum(x.buyRatio ?? x[1]) * 100,
+      ])
+      .filter((r) => Number.isFinite(r[0]))
+      .sort((a, b) => a[0] - b[0]);
+
     const buckets = {};
     (trades.result.list || []).forEach((t) => {
       const ts = Math.floor(Number(t.execTime) / 1000);
@@ -583,13 +603,26 @@ app.post('/api/gemini', async (req, res) => {
       if (t.side === 'Buy') buckets[m].buy += qty;
       else buckets[m].sell += qty;
     });
-    const imbalance = Object.entries(buckets).map(([time, { buy, sell }]) => {
-      const total = buy + sell;
-      const val = total ? (buy - sell) / total : 0;
-      return { time: Number(time), buy, sell, imbalance: val };
-    });
+    const imbalance = Object.entries(buckets)
+      .map(([time, { buy, sell }]) => {
+        const total = buy + sell;
+        return [Number(time), buy, sell, total ? (buy - sell) / total : 0];
+      })
+      .sort((a, b) => a[0] - b[0]);
+
+    const schema = {
+      candles: ['time', 'open', 'high', 'low', 'close', 'volume'],
+      markLine: ['time', 'value'],
+      indexLine: ['time', 'value'],
+      fundingRate: ['time', 'value'],
+      openInterest: ['time', 'value', 'delta'],
+      longShortRatio: ['time', 'value'],
+      tradeImbalance: ['time', 'buy', 'sell', 'imbalance'],
+    };
+
     const coinInfo = {
       symbol,
+      schema,
       candles,
       markLine,
       indexLine,
@@ -598,6 +631,7 @@ app.post('/api/gemini', async (req, res) => {
       longShortRatio: lsrLine,
       tradeImbalance: imbalance,
     };
+
     const prompt =
       '당신은 고도로 숙련된 트레이더이자 차트 분석 전문가입니다.\n\n' +
       `${JSON.stringify(coinInfo)}\n\n` +
